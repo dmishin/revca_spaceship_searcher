@@ -117,7 +117,7 @@ bool do_pick_at(const Cell &xy,
   if ((visited.find(w)!=visited.end()) || fld.get(w) == 0)
       return false;
   visited.insert(w);
-  cells.append (w);
+  cells.append (xy);
   if (max_size>0 && ((int)cells.size() >= max_size))
     return true;
   if (erase) fld.set(w, 0);
