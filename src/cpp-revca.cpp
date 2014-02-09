@@ -25,6 +25,7 @@ MargolusBinaryRule::MargolusBinaryRule(int (&values)[16]  )
 
 ostream & operator << (ostream & os, const MargolusBinaryRule &rule)
 {
+  ios::fmtflags f( os.flags() );
   os<<"[";
   for(int x=0; x<16; ++x){
     if (x != 0) os << " ";
@@ -33,6 +34,7 @@ ostream & operator << (ostream & os, const MargolusBinaryRule &rule)
     os << hex << rule(x) ;
 
   }
+  os.flags( f );
   return os;
 }
 
@@ -76,6 +78,7 @@ int main(int argc, char* argv[])
   p.sort();
   cout << " sorted:"<<p<<endl;
   //testing search
+
   do_random_search(rule, 32, 10, 0.3, 10000, 4, 100);
   return 0;
 }

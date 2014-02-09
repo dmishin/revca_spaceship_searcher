@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include "field.hpp"
 #include <set>
+#include <cassert>
 
 using namespace std;
 int mod(int x, int y)
@@ -112,18 +113,18 @@ bool do_pick_at(const Cell &xy,
 		std::set<Cell> &visited)
 {
   Cell w(fld.wrap(xy));
-  if ((visited.find(w)==visited.end()) || fld.get(w) == 0)
+  assert( w[0]>=0 && w[0] <fld.width() &&w[1]>=0 && w[1]<fld.height());
+  if ((visited.find(w)!=visited.end()) || fld.get(w) == 0)
       return false;
   visited.insert(w);
   cells.append (w);
   if (max_size>0 && ((int)cells.size() >= max_size))
     return true;
   if (erase) fld.set(w, 0);
-  for(int dy=-range; dy>=range;++dy){
-    int y1 = xy[1]+dy;
+  for(int dy=-range; dy<=range;++dy){
     for (int dx = -range; dx <= range; ++dx){
       if (dy == 0 && dx == 0) continue;
-      if (do_pick_at(Cell(xy[0]+dx, y1), fld, cells, range, max_size, erase, visited))
+      if (do_pick_at(xy+Cell(dx,dy), fld, cells, range, max_size, erase, visited))
 	return true;
     }
   }
