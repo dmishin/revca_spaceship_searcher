@@ -3,6 +3,8 @@
 #include "cpp-revca.hpp"
 #include "field.hpp"
 #include <sstream>
+#include <map>
+#include <tuple>
 using namespace std;
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p)
@@ -144,4 +146,49 @@ std::string Pattern::to_rle()const
   }
   endWritingBlock();
   return rle.str();
+}
+
+
+void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed) {
+  //var b_x, b_y, block, block2cells, key, transformed, x, x_code, y, y_code, _, _i, _len, _ref, _ref1, _ref2;
+  if (rule(0) != 0) {
+    throw std::logic_error("Rule has instable vacuum and not supported.");
+  }
+  std::map<std::tuple<int,int>, int> block2cells;
+  for (const Cell& xy: cells.points) {
+    int x = xy[0], y = xy[1];
+    x += phase;
+    y += phase;
+    int b_x = x / 2;
+    int b_y = y / 2;
+    auto key = std::make_tuple(b_x, b_y);
+    auto iBlock = block2cells.find(key);
+    int mask = 1 << (mod(x , 1) + mod(y, 1) * 2);
+    if (iBlock == block2cells.end()){
+      block2cells[key] = mask;
+    }else{
+      iBlock->second |= mask;
+    }
+  }
+
+  for (auto &iBlock : block2cells) {
+    int x_code = iBlock.second;
+    int b_x = std::get<0>(iBlock.first);
+    int b_y = std::get<1>(iBlock.first);
+    b_x = (b_x * 2) - phase;
+    b_y = (b_y * 2) - phase;
+    int y_code = rule(x_code);
+    if (y_code & 1) {
+      transformed.append(Cell(b_x, b_y));
+    }
+    if (y_code & 2) {
+      transformed.append(Cell(b_x + 1, b_y));
+    }
+    if (y_code & 4) {
+      transformed.append(Cell(b_x, b_y + 1));
+    }
+    if (y_code & 8) {
+      transformed.append(Cell(b_x + 1, b_y + 1));
+    }
+  }
 }

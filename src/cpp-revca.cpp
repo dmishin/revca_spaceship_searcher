@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
   cout << " sorted:"<<p<<endl;
   //testing search
 
-  do_random_search(rule, 32, 10, 0.3, 10000, 4, 100);
+  do_random_search(rule, 256, 100, 0.4, 40000, 4, 100);
   return 0;
 }
 

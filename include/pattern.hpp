@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <string>
+
 class MargolusBinaryField;
 
 struct Cell
@@ -16,9 +18,9 @@ struct Cell
   bool operator == (const Cell &c)const{ return (*this)[0]==c[0] && (*this)[1]==c[1]; };
   bool operator != (const Cell &c)const{ return ! (*this == c); };
   bool operator < (const Cell &c)const{
-    if ((*this)[0] < c[0]) return true;
-    if ((*this)[0] > c[0]) return false;
-    return (*this)[1] < c[1];
+    if ((*this)[1] < c[1]) return true;
+    if ((*this)[1] > c[1]) return false;
+    return (*this)[0] < c[0];
   }
   Cell & operator += (const Cell &c){
     (*this)[0] += c[0];
@@ -95,9 +97,13 @@ public:
 
   void put_to(MargolusBinaryField &fld, int x0, int y0, const Transform &tfm )const;
   size_t size()const{ return points.size(); };
+  //Convert list of alive cells to RLE. List of cells must be sorted by Y, then by X, and coordinates of origin must be at (0,0)
+  std::string to_rle()const;
 };
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p);
+
+void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed);
 
 
 
