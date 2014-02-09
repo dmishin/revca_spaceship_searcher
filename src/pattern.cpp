@@ -2,7 +2,7 @@
 #include <algorithm>
 #include "cpp-revca.hpp"
 #include "field.hpp"
-
+#include <sstream>
 using namespace std;
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p)
@@ -94,4 +94,54 @@ void Pattern::normalize()
 {
   translate( -top_left_even() );
   sort();
+}
+
+//Convert list of alive cells to RLE. List of cells must be sorted by Y, then by X, and coordinates of origin must be at (0,0)
+std::string Pattern::to_rle()const
+{
+    //COnvert sorted (by y) list of alive cells to RLE encoding
+  std::stringstream rle;
+  int count = 0;
+    
+  auto appendNumber = [&rle](int n, char c)->void{
+    if (n > 1) rle << n;
+    rle << c;
+  };
+
+  auto endWritingBlock = [&appendNumber, &count]()->void{
+    if (count > 0){
+      appendNumber(count, 'o');
+      count = 0;
+    }
+  };
+
+  int x = -1;
+  int y = 0;
+ 
+  for (const Cell &xyi: points){
+    int xi = xyi[0], yi=xyi[1];
+    int dy = yi - y;
+    if (dy < 0)
+      throw std::logic_error("Cell list are not sorted by Y");
+      
+    if (dy > 0){ //different row
+      endWritingBlock();
+      appendNumber(dy, '$');
+      x = -1;
+      y = yi;
+    }
+    int dx = xi - x;
+    if (dx <= 0)
+      throw std::logic_error( "Cell list is not sorted by X" );
+    if (dx == 1){
+      count++; //continue current horizontal line
+    }else if (dx > 1){ //line broken
+      endWritingBlock();
+      appendNumber(dx - 1, 'b');  //write whitespace before next block
+      count = 1; //and remember the current cell
+    }
+    x = xi;
+  }
+  endWritingBlock();
+  return rle.str();
 }

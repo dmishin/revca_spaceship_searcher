@@ -58,7 +58,7 @@ void do_random_search( const MargolusBinaryRule &rule,
     for( Pattern *p : patterns){
       if(p->size()==0) continue;
       p->normalize();
-      std::cout<<"Pattern found: "<<*p<<std::endl;
+      std::cout<<"Pattern found: "<<p->size()<<" cells "<<p->to_rle()<<std::endl;
       delete p;
     }
     patterns.clear();
