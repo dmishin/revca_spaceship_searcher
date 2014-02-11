@@ -103,9 +103,14 @@ public:
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p);
 
+class MargolusBinaryRule;
 void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed);
 
-
+//true, if two patterns are equal due to some offset.
+//returns the offset, if true.
+bool isOffsetEqual( const Pattern &p1, const Pattern &p2, Cell &offset);
+bool isOffsetEqualWithOddity( const Pattern &p1, const Pattern &p2, bool isOffsetOdd, Cell &offset);
+bool odd(int x);
 
 #endif
 

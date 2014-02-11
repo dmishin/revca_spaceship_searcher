@@ -74,72 +74,92 @@ struct AnalyzeOpts
   int max_population;//=100;
   int max_size;//1000;
 };
-/*
+struct  AnalysysResult{
+  int analyzed_generations;
+  std::string resolution;
+  int period;
+  Cell offset;
+  Pattern bestPattern;
+};
+
+template <class T, class MeasureFunction, class Measure=double>
+struct Maximizer{
+  bool hasValue;
+  Measure bestMeasure;
+  T bestValue;
+  MeasureFunction measureFunc;
+  Maximizer( MeasureFunction func=MeasureFunction() )
+    :hasValue(false)
+    ,measureFunc(func)
+  {};
+
+  void put( const T& value){
+    Measure m = measureFunc(value);
+    if (m > bestMeasure){
+      bestMeasure = m;
+      bestValue = value;
+    }
+    hasValue = true;
+  };
+  const T& getBestValue()const{
+    if (!hasValue)  throw std::logic_error("No values to choose from");
+    return bestValue;
+  }
+};
+
+struct EnergyFunc{
+  double operator ()(const Pattern &p)const{
+    return 0;
+  };
+};
+
 void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule, 
-	     const AnalyzeOpts &options) {
-  var bestPatternSearch, bounds, cells_best, curPattern, cycle_found, dx, dy, iter, max_iters, max_population, max_size, offsetToOrigin, phase, result, snap_below, stable_rule, stable_rules, vacuum_period, x0, y0, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4;
+	     const AnalyzeOpts &options,
+	     AnalysysResult &result) {
 
   int max_iters = options.max_iters;
   int max_population = options.max_population;
-  int max_size = options.max_size;
-  auto snap_below = [](int x, int generation) -> int{
-    return x - mod(x + generation, 2);
-  };
-  auto offsetToOrigin = [](Pattern &pattern, bounds, generation) {
-      auto xy0 = pattern.top_left();
-      int x0 = snap_below(xy0[0], generation);
-      int y0 = snap_below(xy0[1], generation);
-      pattern.offset(pattern, -x0, -y0);
-      return std::make_tuple(pattern, x0, y0);
-  };
-  Rule stable_rules[] = {rule};
+  //int max_size = options.max_size;
+
+  Maximizer<Pattern, EnergyFunc, double> bestPatternSearch;
+
+  MargolusBinaryRule stable_rules[] = {rule};
+
   int vacuum_period = 1;//stable_rules.length;
   Pattern pattern(pattern_);
   pattern.normalize();
-  pattern = offsetToOrigin(pattern, Cells.bounds(pattern), 0)[0];
-    bestPatternSearch = new Maximizer(this.energy);
-    bestPatternSearch.put(pattern);
-    cycle_found = false;
-    curPattern = pattern;
-    dx = 0;
-    dy = 0;
-    result = {
-      analyzed_generations: max_iters,
-      resolution: "iterations exceeded"
-    };
-    for (iter = _i = vacuum_period; vacuum_period > 0 ? _i <= max_iters : _i >= max_iters; iter = _i += vacuum_period) {
-      phase = 0;
-      for (_j = 0, _len = stable_rules.length; _j < _len; _j++) {
-        stable_rule = stable_rules[_j];
-        curPattern = evaluateCellList(stable_rule, curPattern, phase);
-        phase ^= 1;
-      }
-      this.sortXY(curPattern);
-      bounds = Cells.bounds(curPattern);
-      _ref3 = offsetToOrigin(curPattern, bounds, phase), curPattern = _ref3[0], x0 = _ref3[1], y0 = _ref3[2];
-      dx += x0;
-      dy += y0;
-      if (this.areEqual(pattern, curPattern)) {
-        cycle_found = true;
-        result.resolution = "cycle found";
-        break;
-      }
-      bestPatternSearch.put(curPattern);
-      if (curPattern.length > max_population) {
-        result.resolution = "pattern grew too big";
-        break;
-      }
-      if (Math.max(bounds[2] - bounds[0], bounds[3] - bounds[1]) > max_size) {
-        result.resolution = "pattern dimensions grew too big";
-        break;
-      }
+
+  bestPatternSearch.put(pattern);
+
+  Pattern curPattern(pattern);
+
+  result. analyzed_generations = max_iters;
+  result. resolution = "iterations exceeded";
+  result.period = -1;
+  
+
+  Cell offset;
+  int phase = 0;
+  for (int iter = vacuum_period; iter <= max_iters; iter += vacuum_period) {
+    for (int irule=0;irule<vacuum_period;++irule) {
+      evaluateCellList(stable_rules[irule], curPattern, phase, curPattern);
+      phase ^= 1;
     }
-    cells_best = bestPatternSearch.getArg();
-    if (cycle_found) {
-      _ref4 = this.canonicalize_spaceship(cells_best, rule, dx, dy), cells_best = _ref4[0], result.dx = _ref4[1], result.dy = _ref4[2];
+    curPattern.sort();
+    if (isOffsetEqualWithOddity( curPattern, pattern, odd(phase), offset)){
+      //cycle found!
+      result.resolution = "cycle found";
       result.period = iter;
+      result.offset = offset;
+      break;
     }
-    result.cells = cells_best;
-    return result;
-  },
-*/
+    bestPatternSearch.put(curPattern);
+    if (curPattern.size() > (size_t)max_population) {
+      result.resolution = "pattern grew too big";
+      break;
+    }
+  }
+  //search for cycle finished
+  result.bestPattern = bestPatternSearch.getBestValue();
+}
+

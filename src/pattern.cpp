@@ -171,6 +171,7 @@ void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int 
     }
   }
 
+  transformed.points.clear();
   for (auto &iBlock : block2cells) {
     int x_code = iBlock.second;
     int b_x = std::get<0>(iBlock.first);
@@ -191,4 +192,47 @@ void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int 
       transformed.append(Cell(b_x + 1, b_y + 1));
     }
   }
+}
+
+bool isOffsetEqual( const Pattern &p1, const Pattern &p2, Cell &offset)
+{
+  if(p1.size() != p2.size()) return false;
+  if(p1.size() == 0) {
+    offset = Cell(0,0);
+    return true;
+  };
+  offset = p2.points[0] - p1.points[0];
+  int sz = p1.size();
+  for( int i=1; i<sz; ++i){
+    if (p2.points[i] - p1.points[i] != offset)
+      return false;
+  }
+  return true;
+}
+
+bool odd(int x)
+{
+  return (x % 2) != 0;
+}
+bool checkOffsetOddity(const Cell &offset, bool mustBeOdd)
+{
+  return 
+    (odd(offset[0]) == mustBeOdd) &&
+    (odd(offset[1]) == mustBeOdd);
+}
+bool isOffsetEqualWithOddity( const Pattern &p1, const Pattern &p2, bool isOffsetOdd, Cell &offset)
+{
+  if(p1.size() != p2.size()) return false;
+  if(p1.size() == 0) {
+    offset = Cell(0,0);
+    return true;
+  };
+  offset = p2.points[0] - p1.points[0];
+  if (! checkOffsetOddity(offset, isOffsetOdd) ) return false; //wrong oddity
+  int sz = p1.size();
+  for( int i=1; i<sz; ++i){
+    if (p2.points[i] - p1.points[i] != offset)
+      return false;
+  }
+  return true;
 }
