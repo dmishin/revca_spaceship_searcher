@@ -148,32 +148,43 @@ std::string Pattern::to_rle()const
   return rle.str();
 }
 
+int mdiv(int x, int y)
+{
+  if (y < 0) return mdiv(-x,-y);
+  if (x>=0) return x/y;
+  if (x<0) return (x-mod(x,y))/y;
+}
 
+inline int div2(int x){ return x >> 1;}
+inline int mod2(int x){ return x & 1; }
+
+/**default-constructible int*/
+struct default_int{
+  int value;
+  default_int( int v ): value(v){};
+  default_int(): value(0){};
+  default_int( const default_int &di ): value(di.value){};
+  default_int& operator=(const default_int &di){ value=di.value; return *this; };
+};
 void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed) {
   //var b_x, b_y, block, block2cells, key, transformed, x, x_code, y, y_code, _, _i, _len, _ref, _ref1, _ref2;
+  using namespace std;
+
   if (rule(0) != 0) {
-    throw std::logic_error("Rule has instable vacuum and not supported.");
+    throw logic_error("Rule has instable vacuum and not supported.");
   }
-  std::map<std::tuple<int,int>, int> block2cells;
+  map<std::tuple<int,int>, default_int> block2cells;
   for (const Cell& xy: cells.points) {
-    int x = xy[0], y = xy[1];
-    x += phase;
-    y += phase;
-    int b_x = x / 2;
-    int b_y = y / 2;
-    auto key = std::make_tuple(b_x, b_y);
-    auto iBlock = block2cells.find(key);
-    int mask = 1 << (mod(x , 1) + mod(y, 1) * 2);
-    if (iBlock == block2cells.end()){
-      block2cells[key] = mask;
-    }else{
-      iBlock->second |= mask;
-    }
+    int x = xy[0] + phase, y = xy[1] + phase;
+    int b_x = div2(x);
+    int b_y = div2(y);
+    int mask = 1 << (mod2(x) + mod2(y)*2);
+    block2cells[make_tuple(b_x, b_y)].value |= mask; //if value was not present, it will be initialized by 0.
   }
 
   transformed.points.clear();
   for (auto &iBlock : block2cells) {
-    int x_code = iBlock.second;
+    int x_code = iBlock.second.value;
     int b_x = std::get<0>(iBlock.first);
     int b_y = std::get<1>(iBlock.first);
     b_x = (b_x * 2) - phase;
