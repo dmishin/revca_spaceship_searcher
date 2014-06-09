@@ -66,10 +66,9 @@ describe "Cells.analyze() : analyze patterns", ->
 #include "pattern.hpp"
 #include "analyze.hpp"
 
-TEST( AnalyzeCellList, SingleRotationRule ){
+TEST( AnalyzeCellList, BlockPattern ){
     //testing serialization of the simple values
   using namespace std;
-
   int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
   MargolusBinaryRule single_rot(r);
   
@@ -90,4 +89,34 @@ TEST( AnalyzeCellList, SingleRotationRule ){
   /*
   EXPECT_EQ( w.level(), (size_t)0 );
   */
+}
+
+TEST( AnalyzeCellList, SingleCell ){
+  using namespace std;
+  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
+  MargolusBinaryRule single_rot(r);
+  
+  //it "must detect 1-cell pattern correctly", ->
+  Pattern pattern; pattern.append(0,0);
+  AnalyzeOpts opts;
+  AnalysysResult result;
+  analyze( pattern, single_rot, opts, result );
+
+  EXPECT_EQ (result.offset, Cell(0,0));
+  //visually, it is static, but phases are not equal.
+  EXPECT_EQ (result.period, 4 );
+}
+
+TEST( AnalyzeCellList, Spaceship ){
+  using namespace std;
+  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
+  MargolusBinaryRule single_rot(r);
+  //it "must detect light orthogonal spaceship correctly", ->
+  Pattern pattern; pattern.from_rle("$2o2$2o");
+  AnalyzeOpts opts;
+  AnalysysResult result;
+
+  analyze( pattern, single_rot, opts, result );
+  EXPECT_EQ( result.offset, Cell(2,0) );
+  EXPECT_EQ( result.period, 12);
 }
