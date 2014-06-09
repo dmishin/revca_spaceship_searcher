@@ -73,6 +73,18 @@ TEST( AnalyzeCellList, SingleRotationRule ){
   int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
   MargolusBinaryRule single_rot(r);
   
+
+  //it "must detect block pattern correctly", ->
+  Pattern pattern;
+  pattern.from_rle( "b2o$b2o" );
+  AnalysysResult result;
+  AnalyzeOpts opts;
+  analyze(pattern, single_rot, opts, result);
+  
+  EXPECT_EQ( result.resolution, "period found");
+  EXPECT_EQ( result.offset, Cell(0,0) );
+  //#visually, it is static, but phases are not equal
+  EXPECT_EQ( result.period, 2);
   
   
   /*

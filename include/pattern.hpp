@@ -99,6 +99,7 @@ public:
   size_t size()const{ return points.size(); };
   //Convert list of alive cells to RLE. List of cells must be sorted by Y, then by X, and coordinates of origin must be at (0,0)
   std::string to_rle()const;
+  void from_rle( const std::string &rle );
 };
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p);

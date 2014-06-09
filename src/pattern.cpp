@@ -247,3 +247,39 @@ bool isOffsetEqualWithOddity( const Pattern &p1, const Pattern &p2, bool isOffse
   }
   return true;
 }
+
+void Pattern::from_rle( const std::string &rle_string )
+{
+  char c;
+  int count, curCount=0, x=0, y=0;
+  int _ref = rle_string.size();
+  for (int i = 0; i < _ref; ++i) {
+    c = rle_string[i];
+    if (('0' <= c && c <= '9')) {
+      curCount = curCount * 10 + (int(c)-int('0'));
+    } else {
+      count = (std::max)(curCount, 1);
+      curCount = 0;
+      switch (c) {
+        case 'b':
+          x += count;
+          break;
+        case '$':
+          y += count;
+          x = 0;
+          break;
+        case 'o':
+          for (int j = 0; j < count; ++j) {
+            append(x, y);
+            x += 1;
+          }
+          break;
+      default:{
+	std::ostringstream msg;
+	msg<<"Unexpected character in rle: "<<c<<" at position "<<i;
+	throw std::logic_error(msg.str());
+      }
+      }
+    }
+  }
+}

@@ -90,7 +90,7 @@ void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule,
     std::cout<<"#### eval:"<<iter<<" rle:"<<curPattern<<std::endl;
     if (isOffsetEqualWithOddity( curPattern, pattern, odd(phase), offset)){
       //cycle found!
-      result.resolution = "cycle found";
+      result.resolution = "period found";
       result.period = iter;
       result.offset = offset;
       break;
