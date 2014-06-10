@@ -62,13 +62,23 @@ public:
     return matrix[2]*x + matrix[3]*y;
   };
   Cell operator()( const Cell & c )const{
-    return Cell( matrix[0]*c[0] + matrix[1]*c[1],
-		 matrix[2]*c[0] + matrix[3]*c[1] );
+    return Cell( tx(c[0],c[1]), ty(c[0],c[1]) );
   }
   void set( int a00=1, int a01=0, int a10=0, int a11=1 )
   {
     matrix[0]=a00; matrix[1]=a01; matrix[2]=a10; matrix[3]=a11;
   };
+  Transform operator*(const Transform &t){
+    return  Transform(tx(t.matrix[0], t.matrix[2]), tx(t.matrix[1], t.matrix[3]),
+		      ty(t.matrix[0], t.matrix[2]), ty(t.matrix[1], t.matrix[3]));
+  };
+  bool operator == (const Transform &t)const{
+    for(int i=0; i<4; ++i)
+      if (matrix[i]!=t.matrix[i]) return false;
+    return true;
+  };
+  bool operator != (const Transform &t)const{ return ! ((*this)==t); };
+  
 };
 
 class Pattern

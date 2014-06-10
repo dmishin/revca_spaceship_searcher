@@ -9,3 +9,4 @@ function(add_cppgtest TITLE NAME LIBS)
 endfunction(add_cppgtest)
 
 add_cppgtest(Analyze test_analyze_pattern revca )
+add_cppgtest(Transform test_transform revca )
