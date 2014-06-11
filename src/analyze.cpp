@@ -8,6 +8,8 @@
 #include <iostream>
 #include <cmath>
 #include <tuple>
+#include <stdexcept>
+#include <cstdlib>
 
 
 template <class T, class MeasureFunction, class Measure=double>
@@ -57,27 +59,75 @@ struct EnergyFunc{
 void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule, 
 	     const AnalyzeOpts &options,
 	     AnalysysResult &result) {
+  Analyzer analyzer(rule);
+  (AnalyzeOpts&)(analyzer) = options; //write options inside
+  result = analyzer.process( pattern_ );
+}
 
-  int max_iters = options.max_iters;
-  int max_population = options.max_population;
-  //int max_size = options.max_size;
 
+const Transform rotations[4] =
+  { Transform( 1,0,0,1 ),
+    Transform( 0,-1,1,0),
+    Transform( -1,0,0,-1),
+    Transform( 0,1,-1,0) };
+
+const Transform & normalizing_rotation( const Cell &offset )
+{
+  if (offset==Cell(0,0)) return rotations[0];
+
+  for( int i=0; i<4; ++i){
+    Cell offset1 = rotations[i](offset);
+    if (offset1[0] > 0 && offset1[1] >= 0)
+      return rotations[i];
+  }
+  throw std::logic_error("impossible situation");
+}
+
+
+AnalyzerCache::AnalyzerCache()
+{}
+
+size_t AnalyzerCache::put( const AnalysysResult &result )
+{
+  std::unique_ptr<AnalysysResult> presult(new AnalysysResult(result));
+  results.push_back(std::move( presult ) );
+  return results.size()-1;
+}
+
+AnalysysResult *AnalyzerCache::get_cached( const Pattern &p )
+{
+  auto found = cache.find(p);
+  if (found != cache.end())
+    return found -> second;
+  else
+    return nullptr;
+}
+void AnalyzerCache::put( const Pattern &key, size_t result_index )
+{
+  cache[key] = results[result_index].get();
+}
+
+
+AnalysysResult Analyzer::process( const Pattern &pattern_)
+{
+  AnalysysResult result;
   Maximizer<Pattern, EnergyFunc, double> bestPatternSearch;
 
   MargolusBinaryRule stable_rules[] = {rule};
 
   int vacuum_period = 1;//stable_rules.length;
-  Pattern pattern(pattern_);
-  pattern.normalize();
 
+  on_start_processing( pattern_ );
+  Pattern pattern(pattern_);
+  
+  pattern.normalize();
   bestPatternSearch.put(pattern);
 
   Pattern curPattern(pattern);
 
   result. analyzed_generations = max_iters;
-  result. resolution = "iterations exceeded";
+  result. resolution = AnalysysResult::ITERATIONS_EXCEEDED;
   result.period = -1;
-  
 
   Cell offset;
   int phase = 0;
@@ -87,21 +137,81 @@ void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule,
       phase ^= 1;
     }
     curPattern.sort();
-    //std::cout<<"#### eval:"<<iter<<" rle:"<<curPattern<<std::endl;
+    on_iteration( iter, curPattern );
     if (isOffsetEqualWithOddity( pattern, curPattern, odd(phase), offset)){
       //cycle found!
-      result.resolution = "period found";
+      result.resolution = AnalysysResult::CYCLE_FOUND;
       result.period = iter;
-      result.offset = offset;
-      break;
+      //normalizing rotation of the spaceship
+      const Transform &t = normalizing_rotation( offset );
+      bestPatternSearch.getBestValue().transform( t, result.bestPattern );
+      result.offset = t(offset);
+      on_result_found( pattern_, result );
+      return result;
     }
     bestPatternSearch.put(curPattern);
     if (curPattern.size() > (size_t)max_population) {
-      result.resolution = "pattern grew too big";
+      result.resolution = AnalysysResult::PATTERN_TOO_BIG;
+      break;
+    }
+    auto bounds = pattern.bounds();
+    Cell size = std::get<1>(bounds) - std::get<0>(bounds);
+    if (std::max(abs(size[0]), abs(size[1])) > max_size){
+      result.resolution = AnalysysResult::PATTERN_TO_WIDE;
       break;
     }
   }
   //search for cycle finished
   result.bestPattern = bestPatternSearch.getBestValue();
+  on_result_found( pattern_, result );
+  return result;
 }
 
+void CachingAnalyzer::on_start_processing( const Pattern &pattern )
+{
+  using namespace std;
+  if (cache_frozen) return;
+  evolution.clear();
+  unique_ptr<Pattern> ppattern(new Pattern(pattern));
+  evolution.push_back(move(ppattern));
+}
+
+void CachingAnalyzer::on_iteration( int age, const Pattern &pattern )
+{
+  using namespace std;
+  if (cache_frozen) return;
+  unique_ptr<Pattern> ppattern(new Pattern(pattern));
+  evolution.push_back(move(ppattern));
+}
+
+void CachingAnalyzer::on_result_found( const Pattern &pattern, const AnalysysResult &result)
+{
+  using namespace std;
+  if (cache_frozen) return;
+  if (result.resolution == AnalysysResult::CYCLE_FOUND){
+    size_t result_index = cache.put( result );
+    for( unique_ptr<Pattern> &ppattern: evolution ){
+      //TODO: actually, all possible rotations must be put!
+      Pattern p(*ppattern);
+      p.normalize();
+      cache.put( p, result_index );
+    }
+  }
+  evolution.clear();
+}
+
+AnalysysResult CachingAnalyzer::process( const Pattern &pattern)
+{
+  using namespace std;
+  Pattern normalized_pattern(pattern);
+  normalized_pattern.normalize();
+  AnalysysResult * presult = cache.get_cached(normalized_pattern);
+  
+  if( presult != nullptr ){
+    cache_hits ++;
+    return *presult;
+  }else{
+    cache_misses ++;
+    return Analyzer::process( pattern );
+  }
+}

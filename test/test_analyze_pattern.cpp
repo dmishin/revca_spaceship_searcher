@@ -80,7 +80,7 @@ TEST( AnalyzeCellList, BlockPattern ){
   AnalyzeOpts opts;
   analyze(pattern, single_rot, opts, result);
   
-  EXPECT_EQ( result.resolution, "period found");
+  EXPECT_EQ( result.resolution, AnalysysResult::CYCLE_FOUND);
   EXPECT_EQ( result.offset, Cell(0,0) );
   //#visually, it is static, but phases are not equal
   EXPECT_EQ( result.period, 2);

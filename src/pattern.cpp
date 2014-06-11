@@ -5,6 +5,8 @@
 #include <sstream>
 #include <map>
 #include <tuple>
+#include <stdexcept>
+
 using namespace std;
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p)
@@ -151,8 +153,10 @@ std::string Pattern::to_rle()const
 int mdiv(int x, int y)
 {
   if (y < 0) return mdiv(-x,-y);
-  if (x>=0) return x/y;
-  if (x<0) return (x-mod(x,y))/y;
+  if (x>=0)
+    return x/y;
+  else
+    return (x-mod(x,y))/y;
 }
 
 inline int div2(int x){ return x >> 1;}
@@ -166,6 +170,7 @@ struct default_int{
   default_int( const default_int &di ): value(di.value){};
   default_int& operator=(const default_int &di){ value=di.value; return *this; };
 };
+
 void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed) {
   //var b_x, b_y, block, block2cells, key, transformed, x, x_code, y, y_code, _, _i, _len, _ref, _ref1, _ref2;
   using namespace std;
@@ -176,13 +181,12 @@ void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int 
   map<std::tuple<int,int>, default_int> block2cells;
   for (const Cell& xy: cells.points) {
     int x = xy[0] + phase, y = xy[1] + phase;
-    int b_x = div2(x);
-    int b_y = div2(y);
     int mask = 1 << (mod2(x) + mod2(y)*2);
-    block2cells[make_tuple(b_x, b_y)].value |= mask; //if value was not present, it will be initialized by 0.
+    block2cells[make_tuple(div2(x), div2(y))].value |= mask; //if value was not present, it will be initialized by 0.
   }
 
   transformed.points.clear();
+  transformed.points.reserve( cells.size() );
   for (auto &iBlock : block2cells) {
     int x_code = iBlock.second.value;
     int b_x = std::get<0>(iBlock.first);
@@ -190,18 +194,14 @@ void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int 
     b_x = (b_x * 2) - phase;
     b_y = (b_y * 2) - phase;
     int y_code = rule(x_code);
-    if (y_code & 1) {
+    if (y_code & 1) 
       transformed.append(Cell(b_x, b_y));
-    }
-    if (y_code & 2) {
+    if (y_code & 2)
       transformed.append(Cell(b_x + 1, b_y));
-    }
-    if (y_code & 4) {
+    if (y_code & 4)
       transformed.append(Cell(b_x, b_y + 1));
-    }
-    if (y_code & 8) {
+    if (y_code & 8)
       transformed.append(Cell(b_x + 1, b_y + 1));
-    }
   }
 }
 
@@ -252,8 +252,8 @@ void Pattern::from_rle( const std::string &rle_string )
 {
   char c;
   int count, curCount=0, x=0, y=0;
-  int _ref = rle_string.size();
-  for (int i = 0; i < _ref; ++i) {
+  size_t nchars = rle_string.size();
+  for (size_t i = 0; i < nchars; ++i) {
     c = rle_string[i];
     if (('0' <= c && c <= '9')) {
       curCount = curCount * 10 + (int(c)-int('0'));
@@ -282,4 +282,34 @@ void Pattern::from_rle( const std::string &rle_string )
       }
     }
   }
+}
+
+//affine transform the pattern, no normalization. might be self.
+void Pattern::transform( const Transform &t, Pattern &to )const
+{
+  if (&to != this){
+    to.points.clear();
+    to.points.reserve(size());
+  }
+  for( const Cell &xy: points ){
+    //the idea is:
+    // transform so that the first block: (0,0), (0,1), (1,0), (1,1) maps to itself
+    // to do this, we need: tfm( x- 0.5)+0.5
+    // to avoid floating-point operations, scale everything by 2
+    int x = xy[0]*2-1;
+    int y = xy[1]*2-1;
+    int x1 = div2(t.tx(x,y)+1);
+    int y1 = div2(t.ty(x,y)+1);
+    if (&to != this)
+      to.append( x1, y1 );
+    else
+      //Transform inplace
+      const_cast<Cell&>(xy) = Cell(x1,y1);
+  }
+}
+
+
+bool Pattern::operator == (const Pattern &p)const
+{
+  return p.points == points;
 }

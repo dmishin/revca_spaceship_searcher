@@ -58,7 +58,7 @@ void do_random_search( const MargolusBinaryRule &rule,
 		 patterns, pick_range, max_pattern_size);
     */
     for( Pattern *p : patterns){
-      if(p->size()==0 || p->size()>= max_pattern_size) continue;
+      if(p->size()==0 || p->size()>= (size_t)max_pattern_size) continue;
       p->normalize();
       listener.onPattern( *p );
       delete p;

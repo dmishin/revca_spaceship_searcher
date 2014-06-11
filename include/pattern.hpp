@@ -77,9 +77,9 @@ public:
       if (matrix[i]!=t.matrix[i]) return false;
     return true;
   };
-  bool operator != (const Transform &t)const{ return ! ((*this)==t); };
-  
+  bool operator != (const Transform &t)const{ return ! ((*this)==t); };  
 };
+
 
 class Pattern
 {
@@ -103,6 +103,7 @@ public:
   std::tuple<Cell, Cell> bounds()const;
   Cell top_left()const;
   Cell top_left_even()const;
+  //Sort and shoft to origin
   void normalize();
 
   void put_to(MargolusBinaryField &fld, int x0, int y0, const Transform &tfm )const;
@@ -110,6 +111,13 @@ public:
   //Convert list of alive cells to RLE. List of cells must be sorted by Y, then by X, and coordinates of origin must be at (0,0)
   std::string to_rle()const;
   void from_rle( const std::string &rle );
+  //affine transform the pattern, no normalization. might be self.
+  void transform( const Transform &t, Pattern &to )const;
+  //purely inplace version
+  Pattern & transform( const Transform &t ){ transform(t, *this); return *this; };
+
+  bool operator == (const Pattern &p)const;
+  bool operator != (const Pattern &p)const{ return ! (*this == p); };
 };
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p);
@@ -123,6 +131,27 @@ bool isOffsetEqual( const Pattern &p1, const Pattern &p2, Cell &offset);
 bool isOffsetEqualWithOddity( const Pattern &p1, const Pattern &p2, bool isOffsetOdd, Cell &offset);
 bool odd(int x);
 
+
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+}
+
+namespace std{
+  template<>
+  struct hash<Pattern>{
+    size_t operator()(const Pattern &p)const{
+      size_t h = 0;
+      for( const Cell &c: p.points ){
+	hash_combine( h, c[0] );
+	hash_combine( h, c[1] );
+      }
+      return h;
+    };
+  };
+};
 #endif
 
 
