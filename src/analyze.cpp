@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <cstdlib>
 
+using namespace std;
 
 template <class T, class MeasureFunction, class Measure=double>
 struct Maximizer{
@@ -25,14 +26,14 @@ struct Maximizer{
 
   void put( const T& value){
     Measure m = measureFunc(value);
-    if (m > bestMeasure){
+    if ((!hasValue) || (m > bestMeasure)){
       bestMeasure = m;
       bestValue = value;
     }
     hasValue = true;
   };
   const T& getBestValue()const{
-    if (!hasValue)  throw std::logic_error("No values to choose from");
+    if (!hasValue)  throw logic_error("No values to choose from");
     return bestValue;
   }
 };
@@ -80,7 +81,7 @@ const Transform & normalizing_rotation( const Cell &offset )
     if (offset1[0] > 0 && offset1[1] >= 0)
       return rotations[i];
   }
-  throw std::logic_error("impossible situation");
+  throw logic_error("impossible situation");
 }
 
 
@@ -89,8 +90,8 @@ AnalyzerCache::AnalyzerCache()
 
 size_t AnalyzerCache::put( const AnalysysResult &result )
 {
-  std::unique_ptr<AnalysysResult> presult(new AnalysysResult(result));
-  results.push_back(std::move( presult ) );
+  unique_ptr<AnalysysResult> presult(new AnalysysResult(result));
+  results.push_back(move( presult ) );
   return results.size()-1;
 }
 
@@ -134,6 +135,9 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
   for (int iter = vacuum_period; iter <= max_iters; iter += vacuum_period) {
     for (int irule=0;irule<vacuum_period;++irule) {
       evaluateCellList(stable_rules[irule], curPattern, phase, curPattern);
+      if (curPattern.size() != pattern_.size()){
+	cerr << "Size changed!"<<pattern_<<" "<<curPattern<<endl;
+      }
       phase ^= 1;
     }
     curPattern.sort();
@@ -145,6 +149,7 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
       //normalizing rotation of the spaceship
       const Transform &t = normalizing_rotation( offset );
       bestPatternSearch.getBestValue().transform( t, result.bestPattern );
+      result.bestPattern.normalize();
       result.offset = t(offset);
       on_result_found( pattern_, result );
       return result;
@@ -155,14 +160,15 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
       break;
     }
     auto bounds = pattern.bounds();
-    Cell size = std::get<1>(bounds) - std::get<0>(bounds);
-    if (std::max(abs(size[0]), abs(size[1])) > max_size){
+    Cell size = get<1>(bounds) - get<0>(bounds);
+    if (max(abs(size[0]), abs(size[1])) > max_size){
       result.resolution = AnalysysResult::PATTERN_TO_WIDE;
       break;
     }
   }
   //search for cycle finished
   result.bestPattern = bestPatternSearch.getBestValue();
+  result.offset = Cell(0,0);
   on_result_found( pattern_, result );
   return result;
 }
