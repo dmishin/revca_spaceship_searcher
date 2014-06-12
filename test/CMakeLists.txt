@@ -1,6 +1,4 @@
-#add_executable( unit_network unit_network.cpp )
-#target_link_libraries( unit_network spiking gtest gtest_main )
-#add_test( Network unit_network )
+set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 
 function(add_cppgtest TITLE NAME LIBS)
   add_executable(${NAME} ${NAME}.cpp)

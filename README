@@ -1,2 +1,5 @@
 C++ simulator and pattern searcher for 
 binary reversible cellular automata with margolus neighborhood.
+
+
+cat ../singlerot1.jsons.bz2  |bunzip2 | ./src/bulk_analyzer > /dev/null
