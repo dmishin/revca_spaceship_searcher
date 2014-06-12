@@ -2,6 +2,7 @@
 #include "cpp-revca.hpp"
 #include "field.hpp"
 #include "random_search.hpp"
+#include "mathutil.hpp"
 
 #include <vector>
 #include <cstdlib>
@@ -13,33 +14,9 @@
 
 using namespace std;
 
-template <class T, class MeasureFunction, class Measure=double>
-struct Maximizer{
-  bool hasValue;
-  Measure bestMeasure;
-  T bestValue;
-  MeasureFunction measureFunc;
-  explicit Maximizer( MeasureFunction func=MeasureFunction() )
-    :hasValue(false)
-    ,measureFunc(func)
-  {};
 
-  void put( const T& value){
-    Measure m = measureFunc(value);
-    if ((!hasValue) || (m > bestMeasure)){
-      bestMeasure = m;
-      bestValue = value;
-    }
-    hasValue = true;
-  };
-  const T& getBestValue()const{
-    if (!hasValue)  throw logic_error("No values to choose from");
-    return bestValue;
-  }
-};
-
-struct EnergyFunc{
-  double operator ()(const Pattern &p)const{
+double pattern_energy( const Pattern &p )
+{
     using namespace std;
     int n = (int)p.size();
     double e = 0;
@@ -54,8 +31,7 @@ struct EnergyFunc{
     auto bounds = p.bounds();
     Cell size = get<1>(bounds) - get<0>(bounds);
     return e / ((size[0] + 1) * (size[1] + 1));
-  };
-};
+}
 
 void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule, 
 	     const AnalyzeOpts &options,
@@ -109,20 +85,27 @@ void AnalyzerCache::put( const Pattern &key, size_t result_index )
 }
 
 
+struct EnergyFunc{
+  double operator ()(const std::pair<Pattern, int> &p_phase)const{
+    return pattern_energy(p_phase.first); 
+  };
+};
 AnalysysResult Analyzer::process( const Pattern &pattern_)
 {
   AnalysysResult result;
-  Maximizer<Pattern, EnergyFunc, double> bestPatternSearch;
+  Maximizer<pair<Pattern, int>, EnergyFunc, double> bestPatternSearch;
 
   MargolusBinaryRule stable_rules[] = {rule};
 
   int vacuum_period = 1;//stable_rules.length;
 
+  int phase = 0;
+
   on_start_processing( pattern_ );
   Pattern pattern(pattern_);
   
   pattern.normalize();
-  bestPatternSearch.put(pattern);
+  bestPatternSearch.put(make_pair(pattern, phase) ); //initial phase is 0
 
   Pattern curPattern(pattern);
 
@@ -131,13 +114,9 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
   result.period = -1;
 
   Cell offset;
-  int phase = 0;
   for (int iter = vacuum_period; iter <= max_iters; iter += vacuum_period) {
     for (int irule=0;irule<vacuum_period;++irule) {
       evaluateCellList(stable_rules[irule], curPattern, phase, curPattern);
-      if (curPattern.size() != pattern_.size()){
-	cerr << "Size changed!"<<pattern_<<" "<<curPattern<<endl;
-      }
       phase ^= 1;
     }
     curPattern.sort();
@@ -148,13 +127,15 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
       result.period = iter;
       //normalizing rotation of the spaceship
       const Transform &t = normalizing_rotation( offset );
-      bestPatternSearch.getBestValue().transform( t, result.bestPattern );
+      bestPatternSearch.getBestValue().first.transform( t, result.bestPattern );
+      int bestValuePhase = bestPatternSearch.getBestValue().second;
+      result.bestPattern.translate(bestValuePhase,bestValuePhase);
       result.bestPattern.normalize();
       result.offset = t(offset);
       on_result_found( pattern_, result );
       return result;
     }
-    bestPatternSearch.put(curPattern);
+    bestPatternSearch.put(make_pair(curPattern, phase));
     if (curPattern.size() > (size_t)max_population) {
       result.resolution = AnalysysResult::PATTERN_TOO_BIG;
       break;
@@ -167,7 +148,11 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
     }
   }
   //search for cycle finished
-  result.bestPattern = bestPatternSearch.getBestValue();
+  result.bestPattern = bestPatternSearch.getBestValue().first;
+  int bestValuePhase = bestPatternSearch.getBestValue().second;
+  result.bestPattern.translate(bestValuePhase,bestValuePhase);
+  result.bestPattern.normalize();
+
   result.offset = Cell(0,0);
   on_result_found( pattern_, result );
   return result;
