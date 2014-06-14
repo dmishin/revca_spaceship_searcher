@@ -8,3 +8,5 @@ endfunction(add_cppgtest)
 
 add_cppgtest(Analyze test_analyze_pattern revca )
 add_cppgtest(Transform test_transform revca )
+add_cppgtest(Pattern test_pattern revca )
+add_cppgtest(TreePattern test_tree_pattern revca )
