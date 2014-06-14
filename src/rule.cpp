@@ -43,6 +43,6 @@ ostream & operator << (ostream & os, const MargolusBinaryRule &rule)
 bool MargolusBinaryRule::operator==(const MargolusBinaryRule &r)const
 {
   for(int i=0; i<16; ++i)
-    if (table[i] != r.table(i)) return false;
+    if (table[i] != r.table[i]) return false;
   return true;
 }
