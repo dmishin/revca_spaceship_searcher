@@ -6,6 +6,7 @@
 #include <map>
 #include <tuple>
 #include <stdexcept>
+#include "mathutil.hpp"
 
 using namespace std;
 
@@ -150,27 +151,6 @@ std::string Pattern::to_rle()const
   return rle.str();
 }
 
-int mdiv(int x, int y)
-{
-  if (y < 0) return mdiv(-x,-y);
-  if (x>=0)
-    return x/y;
-  else
-    return (x-mod(x,y))/y;
-}
-
-inline int div2(int x){ return x >> 1;}
-inline int mod2(int x){ return x & 1; }
-
-/**default-constructible int*/
-struct default_int{
-  int value;
-  default_int( int v ): value(v){};
-  default_int(): value(0){};
-  default_int( const default_int &di ): value(di.value){};
-  default_int& operator=(const default_int &di){ value=di.value; return *this; };
-};
-
 void evaluateCellList(const MargolusBinaryRule &rule, const Pattern &cells, int phase, Pattern&transformed) {
   //var b_x, b_y, block, block2cells, key, transformed, x, x_code, y, y_code, _, _i, _len, _ref, _ref1, _ref2;
   using namespace std;
@@ -221,10 +201,6 @@ bool isOffsetEqual( const Pattern &p1, const Pattern &p2, Cell &offset)
   return true;
 }
 
-bool odd(int x)
-{
-  return (x % 2) != 0;
-}
 bool checkOffsetOddity(const Cell &offset, bool mustBeOdd)
 {
   return 

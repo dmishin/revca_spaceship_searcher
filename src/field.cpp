@@ -1,5 +1,6 @@
 #include "cpp-revca.hpp"
 #include "pattern.hpp"
+#include "mathutil.hpp"
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
@@ -8,12 +9,6 @@
 #include <cassert>
 
 using namespace std;
-int mod(int x, int y)
-{
-  int m =  x % y;
-  return (m<0)?(m+y):m;
-}
-
 MargolusBinaryField::MargolusBinaryField( int w2, int h2 )
   :cells(w2*h2, 0)
   ,width2(w2)
