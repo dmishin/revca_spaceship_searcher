@@ -3,6 +3,7 @@
 #include "field.hpp"
 #include "random_search.hpp"
 #include "mathutil.hpp"
+#include "tree_pattern.hpp"
 
 #include <vector>
 #include <cstdlib>
@@ -205,4 +206,66 @@ AnalysysResult CachingAnalyzer::process( const Pattern &pattern)
     cache_misses ++;
     return Analyzer::process( pattern );
   }
+}
+
+
+AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population)
+{
+  AnalysysResult result;
+  //Maximizer<pair<Pattern, int>, EnergyFunc, double> bestPatternSearch;
+
+  MargolusBinaryRule stable_rules[] = {rule};
+
+  int vacuum_period = 1;//stable_rules.length;
+
+  int phase = 0;
+
+  //on_start_processing( pattern );
+  //bestPatternSearch.put(pattern ); //initial phase is 0
+
+  TreePattern cur_pattern(pattern);
+
+  result.analyzed_generations = max_iters;
+  result.resolution = AnalysysResult::ITERATIONS_EXCEEDED;
+  result.period = -1;
+
+  Cell block_offset;
+  for (int iter = vacuum_period; iter <= max_iters; iter += vacuum_period) {
+    for (int irule=0;irule<vacuum_period;++irule) {
+      TreePattern _nextStep;
+      cur_pattern.evaluate(stable_rules[irule], phase, _nextStep);
+      cur_pattern.swap(_nextStep);
+      phase ^= 1;
+    }
+    if (pattern.shift_equal(cur_pattern, block_offset)){
+      //cycle found!
+      result.offset = block_offset*2;
+      if (phase == 1)
+	result.offset += Cell(-1,-1);
+      result.resolution = AnalysysResult::CYCLE_FOUND;
+      result.period = iter;
+      //normalizing rotation of the spaceship
+      //const Transform &t = normalizing_rotation( offset );
+      //bestPatternSearch.getBestValue().first.transform( t, result.bestPattern );
+      //result.offset = t(offset);
+      return result;
+    }
+    //bestPatternSearch.put(make_pair(cur_pattern, phase));
+    if (cur_pattern.blocks_size() > (size_t)max_population) {
+      result.resolution = AnalysysResult::PATTERN_TOO_BIG;
+      break;
+    }
+    /*
+    auto bounds = pattern.bounds();
+    Cell size = get<1>(bounds) - get<0>(bounds);
+    if (max(abs(size[0]), abs(size[1])) > max_size){
+      result.resolution = AnalysysResult::PATTERN_TO_WIDE;
+      break;
+    }
+    */
+  }
+  //search for cycle finished
+  //result.bestPattern = bestPatternSearch.getBestValue().first;
+  result.offset = Cell(0,0);
+  return result;
 }

@@ -41,6 +41,9 @@ struct Cell
   Cell operator - (const Cell &c)const{
     return Cell(*this) -= c;
   };
+  Cell operator *(const int k)const{
+    return Cell(coords[0]*2, coords[1]*2);
+  };
 };
 
 inline std::ostream & operator << (std::ostream &os, const Cell &c)

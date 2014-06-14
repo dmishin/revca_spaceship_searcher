@@ -69,8 +69,7 @@ describe "Cells.analyze() : analyze patterns", ->
 TEST( AnalyzeCellList, BlockPattern ){
     //testing serialization of the simple values
   using namespace std;
-  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
-  MargolusBinaryRule single_rot(r);
+  MargolusBinaryRule single_rot({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});
   
 
   //it "must detect block pattern correctly", ->
@@ -93,8 +92,7 @@ TEST( AnalyzeCellList, BlockPattern ){
 
 TEST( AnalyzeCellList, SingleCell ){
   using namespace std;
-  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
-  MargolusBinaryRule single_rot(r);
+  MargolusBinaryRule single_rot({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});
   
   //it "must detect 1-cell pattern correctly", ->
   Pattern pattern; pattern.append(0,0);
@@ -109,8 +107,7 @@ TEST( AnalyzeCellList, SingleCell ){
 
 TEST( AnalyzeCellList, Spaceship ){
   using namespace std;
-  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
-  MargolusBinaryRule single_rot(r);
+  MargolusBinaryRule single_rot({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});
   //it "must detect light orthogonal spaceship correctly", ->
   Pattern pattern; pattern.from_rle("$2o2$2o");
   AnalyzeOpts opts;

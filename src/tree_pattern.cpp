@@ -137,28 +137,38 @@ Cell TreePattern::top_left_even()const
   }
   return Cell(xmin, ymin);
 }
+void TreePattern::translate_even(int dx2, int dy2, TreePattern&to)const
+{
+  Cell shift(dx2,dy2);
+  for( auto &iblock: blocks ){
+    to.blocks[iblock.first+shift]=iblock.second;
+  }
+}
 void TreePattern::translate_even(int dx2, int dy2)
 {
   TreePattern translated;
-  Cell shift(dx2,dy2);
-  for( auto &iblock: blocks ){
-    translated.blocks[iblock.first+shift]=iblock.second;
-  }
+  translate_even(dx2,dy2,translated);
   swap(translated);
 }
 
 void TreePattern::translate(int dx, int dy)
 {
+  TreePattern translated;
+  translate(dx,dy,translated);
+  swap(translated);
+}
+
+void TreePattern::translate(int dx, int dy, TreePattern &to)const
+{
   if ((mod2(dx)==0) && (mod2(dy)==0)){
-    translate_even(dx/2,dy/2);
+    translate_even(dx/2,dy/2, to);
   }else{
-    TreePattern translated;
-    for_each_cell(blocks, [&translated,dx,dy](int x, int y){
-	translated.append(x+dx,y+dy);
+    for_each_cell(blocks, [&to,dx,dy](int x, int y){
+	to.append(x+dx,y+dy);
       });
-    swap(translated);
   }
 }
+
 
 void TreePattern::swap(TreePattern &p)
 {
@@ -166,7 +176,7 @@ void TreePattern::swap(TreePattern &p)
 }
 
 
-bool TreePattern::shift_equal( const TreePattern &p, Cell &shift_)
+bool TreePattern::shift_equal( const TreePattern &p, Cell &shift_)const
 {
   if (blocks.size() != p.blocks.size())
     return false;
@@ -212,3 +222,22 @@ std::ostream & operator << (std::ostream &os, const TreePattern &p)
   return os<<']';
 }
 
+
+int bit_sum(int x)
+{
+  int s = x&1;
+  for(int i=1; i!=4; ++i){
+    x = x >> 1;
+    s += (x&1);
+  }
+  return s;
+}
+
+size_t TreePattern::size()const
+{
+  size_t s=0;
+  for( auto &item : blocks ){
+    s += bit_sum( item.second.value );
+  }
+  return s;
+}

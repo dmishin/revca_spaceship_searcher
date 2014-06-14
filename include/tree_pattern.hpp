@@ -44,17 +44,22 @@ public:
   Cell top_left_even()const;
   //  Cell bottom_right_even()const;
 
+  void translate_even(int dx2, int dy2, TreePattern&to)const;
   void translate_even(int dx2, int dy2);
+  void translate(int dx, int dy, TreePattern &to)const;
   void translate(int dx, int dy);
 
 
   void evaluate( const MargolusBinaryRule &rule, int phase, TreePattern &out);
   
-  bool shift_equal( const TreePattern &p, Cell &shift);
+  bool shift_equal( const TreePattern &p, Cell &shift)const;
 
   friend std::ostream & operator << (std::ostream &os, const TreePattern &p);
 
   bool at( int x, int y )const;
+
+  size_t blocks_size()const{ return blocks.size(); };
+  size_t size()const;
 };
 
 std::ostream & operator << (std::ostream &os, const TreePattern &p);
