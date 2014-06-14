@@ -90,4 +90,7 @@ protected:
 
 const Transform & normalizing_rotation( const Cell &offset );
 
+class TreePattern;
+AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population);
+
 #endif

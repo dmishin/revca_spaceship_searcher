@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "tree_pattern.hpp"
 #include "rule.hpp"
+#include "analyze.hpp"
 
 TEST( TreePattern, basic ){
   TreePattern p;  
@@ -110,3 +111,18 @@ TEST(TreePattern, transform)
   EXPECT_EQ( TreePattern{Cell(0,0)}, pt );
 }
 
+
+TEST(TreePattern, analyze)
+{
+  MargolusBinaryRule single_rot({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});   
+
+  TreePattern pat{Cell(0,0)}; //it's a period-4 oscillator
+
+  AnalysysResult result = analyze_with_trees(pat, single_rot, 1000, 1000);
+
+  EXPECT_EQ( AnalysysResult::CYCLE_FOUND, result.resolution );
+  EXPECT_EQ( Cell(0,0), result.offset );
+  EXPECT_EQ( 4, result.period );
+  //not testing optimal form since it is not impleneted yet.
+}
+    
