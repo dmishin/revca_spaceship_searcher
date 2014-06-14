@@ -17,7 +17,7 @@ void MargolusBinaryRule::set(int index, int x)
   table[index] = x;
 }
 
-MargolusBinaryRule::MargolusBinaryRule(int (&values)[16]  )
+MargolusBinaryRule::MargolusBinaryRule(const int (&values)[16]  )
 {
   copy( & values[0], (& values[0]) + 16, &table[0] );
 }
@@ -39,3 +39,10 @@ ostream & operator << (ostream & os, const MargolusBinaryRule &rule)
 }
 
 
+
+bool MargolusBinaryRule::operator==(const MargolusBinaryRule &r)const
+{
+  for(int i=0; i<16; ++i)
+    if (table[i] != r.table(i)) return false;
+  return true;
+}

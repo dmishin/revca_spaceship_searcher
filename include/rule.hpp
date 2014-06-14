@@ -13,11 +13,19 @@ class MargolusBinaryRule{
   int table[16];
 public:
   MargolusBinaryRule(){};
-  MargolusBinaryRule(int (&values)[16]  );
+  MargolusBinaryRule(const int (& values)[16]  );
+
+  //16 elements here
+  //MargolusBinaryRule(int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,int);
+  
   //MargolusBinaryRule( const MargolusBinaryRule& r );
   int operator()(int x)const{ return table[x]; };
   void set(int index, int x);
 
+  bool operator==(const MargolusBinaryRule &r)const;
+  bool operator!=(const MargolusBinaryRule &r)const {return !(*this==r);};
+  
+  
   
 };
 
