@@ -14,9 +14,64 @@
 #include <fstream>
 #include <cstring>
 #include <ctime>
+#include <unordered_map>
+
 
 using namespace std;
 
+class Library{
+public:
+  
+  struct LibraryRecord{
+    int count;
+    int period;
+    Cell offset;
+  };
+  typedef std::unordered_map<Pattern, LibraryRecord> catalog_t;
+private:
+  catalog_t catalog;
+public:
+  void put( const AnalysysResult & result );
+  void dump( std::ostream &os );
+  void read( std::istream &is );
+};
+
+
+void Library::put( const AnalysysResult & result )
+{
+  auto iitem = catalog.find( result.bestPattern );
+  if (iitem != catalog.end() ){
+    //already have it
+    iitem->second.count ++;
+  }else{
+    LibraryRecord rcd;
+    rcd.count = 1;
+    rcd.period = result.period;
+    rcd.offset = result.offset;
+    catalog[result.bestPattern] = rcd;
+  }
+}
+void Library::dump( std::ostream &os )
+{
+  os<<"{\"version\":1,"<<endl
+    <<"\"size\":"<<catalog.size()<<','
+    <<"\"catalog\":["<<endl;
+  bool first = true;
+  for( auto item : catalog ){
+    if (first) first=false; else os <<",";
+    os << "{ \"pattern\": "<<'"'<<item.first.to_rle()<<'"'<<",";
+    os << " \"count\":"<<item.second.count<<",";
+    os << " \"period\":"<<item.second.period<<",";
+    os << " \"offset\":"<<item.second.offset<<"}"<<endl;
+  }
+  os << "]}"<<endl;
+}
+void Library::read( std::istream &is )
+{
+  //TODO
+}
+
+Library library;
 
 void parse_record( picojson::value &record, int & generation, Pattern &pattern )
 {
@@ -34,6 +89,7 @@ void parse_record( picojson::value &record, int & generation, Pattern &pattern )
 		    (int)xy[1].get<double>() );
   }
 }
+
 void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern )
 {
   auto result = analyzer.process(pattern);
@@ -41,8 +97,9 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern 
   if (result.resolution == AnalysysResult::CYCLE_FOUND &&
       result.offset != Cell(0,0)){
 
-    result.bestPattern.normalize();
-  
+    library.put( result );
+
+    /*
     string rle = result.bestPattern.to_rle();
     cout <<"{"<<"pop:"<<result.bestPattern.size()
 	 <<","<<"g:"<<generation
@@ -50,8 +107,10 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern 
 	 <<","<<"v:"<<result.offset
 	 <<","<<"rle:\""<< result.bestPattern.to_rle() << "\""
 	 <<"}"<<endl;
+    */
   }
 }
+
 int main(int argc, char* argv[])
 {
   int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
@@ -65,6 +124,7 @@ int main(int argc, char* argv[])
   const int buf_size = 2048;
   //const size_t min_pattern_size = 7;
   //size_t max_cache = 10;
+  const double update_time = 5.0;
   
   char line_buffer[buf_size];
   time_t timeBegin = time( nullptr );
@@ -90,13 +150,15 @@ int main(int argc, char* argv[])
     processed ++;
     time_t curTime = time(NULL);
     double dt = difftime( curTime, timeBegin );
-    if (dt > 1.0){
-      //double miss_ratio = (double)analyzer.cache_misses / (double)(analyzer.cache_hits + analyzer.cache_misses);
+    if (dt > update_time){
       cerr << "Tthroughput: "<< (processed/dt) << " rows/s"
-//	   << " miss/hit ratio:" << miss_ratio
 	   << endl;
       processed = 0;
       timeBegin = curTime;
+      {
+	std::ofstream lib_file("library.json");
+	library.dump( lib_file );
+      }
     }
   };
   
