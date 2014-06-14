@@ -208,11 +208,18 @@ AnalysysResult CachingAnalyzer::process( const Pattern &pattern)
   }
 }
 
+struct TreePatternEnergy{
+  double operator()( const TreePattern &p ){
+    Pattern temp;
+    p.to_list(temp);
+    return pattern_energy(temp);
+  };
+};
 
 AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population)
 {
   AnalysysResult result;
-  //Maximizer<pair<Pattern, int>, EnergyFunc, double> bestPatternSearch;
+  Maximizer<TreePattern, TreePatternEnergy, double> bestPatternSearch;
 
   MargolusBinaryRule stable_rules[] = {rule};
 
@@ -221,7 +228,7 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
   int phase = 0;
 
   //on_start_processing( pattern );
-  //bestPatternSearch.put(pattern ); //initial phase is 0
+  bestPatternSearch.put(pattern ); //initial phase is 0
 
   TreePattern cur_pattern(pattern);
 
@@ -245,12 +252,14 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
       result.resolution = AnalysysResult::CYCLE_FOUND;
       result.period = iter;
       //normalizing rotation of the spaceship
-      //const Transform &t = normalizing_rotation( offset );
-      //bestPatternSearch.getBestValue().first.transform( t, result.bestPattern );
-      //result.offset = t(offset);
+      const Transform &t = normalizing_rotation( result.offset );
+      Pattern as_list;
+      bestPatternSearch.getBestValue().to_list(as_list);
+      as_list.transform( t, result.bestPattern );
+      result.offset = t(result.offset);
       return result;
     }
-    //bestPatternSearch.put(make_pair(cur_pattern, phase));
+    bestPatternSearch.put( cur_pattern );
     if (cur_pattern.blocks_size() > (size_t)max_population) {
       result.resolution = AnalysysResult::PATTERN_TOO_BIG;
       break;
@@ -265,7 +274,7 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
     */
   }
   //search for cycle finished
-  //result.bestPattern = bestPatternSearch.getBestValue().first;
+  bestPatternSearch.getBestValue().to_list(result.bestPattern);
   result.offset = Cell(0,0);
   return result;
 }

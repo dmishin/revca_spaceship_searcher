@@ -241,3 +241,20 @@ size_t TreePattern::size()const
   }
   return s;
 }
+
+void TreePattern::transform( const Transform &tfm, TreePattern &to)const
+{
+  if (&to == this){
+    TreePattern _temp;
+    transform( tfm, _temp );
+    to.swap(_temp);
+  }else{
+    for_each_cell(blocks, [&to, &tfm](int x, int y){
+	int xx = x*2-1;
+	int yy = y*2-1;
+	int x1 = div2(tfm.tx(xx,yy)+1);
+	int y1 = div2(tfm.ty(xx,yy)+1);
+	to.append(x1, y1);
+      });
+  }
+}

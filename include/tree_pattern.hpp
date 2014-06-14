@@ -7,6 +7,7 @@
 #include <iostream>
 
 class MargolusBinaryRule;
+class Transform;
 
 /**Alternative implementation of the pattern*/
 class TreePattern{
@@ -48,6 +49,9 @@ public:
   void translate_even(int dx2, int dy2);
   void translate(int dx, int dy, TreePattern &to)const;
   void translate(int dx, int dy);
+
+
+  void transform( const Transform &tfm, TreePattern &to)const;
 
 
   void evaluate( const MargolusBinaryRule &rule, int phase, TreePattern &out);
