@@ -40,11 +40,11 @@ void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule,
 	     AnalysysResult &result);
 
 class Analyzer: public AnalyzeOpts{
-  const MargolusBinaryRule &rule;
 public:
   Analyzer( const MargolusBinaryRule &rule_ ): rule(rule_){};
   virtual AnalysysResult process( const Pattern &pattern);
 protected:
+  const MargolusBinaryRule &rule;
   virtual void on_start_processing( const Pattern &pattern ){};
   virtual void on_iteration( int age, const Pattern &pattern ){};
   virtual void on_result_found( const Pattern &pattern, const AnalysysResult &result){};
@@ -86,6 +86,15 @@ protected:
   virtual void on_start_processing( const Pattern &pattern );
   virtual void on_iteration( int age, const Pattern &pattern );
   virtual void on_result_found( const Pattern &pattern, const AnalysysResult &result);
+};
+
+class TreeAnalyzer: public Analyzer{
+public:
+  TreeAnalyzer( const MargolusBinaryRule &rule )
+    :Analyzer(rule)
+  {};
+  //override
+  virtual AnalysysResult process( const Pattern &pattern);
 };
 
 const Transform & normalizing_rotation( const Cell &offset );

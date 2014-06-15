@@ -18,6 +18,8 @@ using namespace std;
 
 double pattern_energy( const Pattern &p )
 {
+  return 1.1;
+  /*
     using namespace std;
     int n = (int)p.size();
     double e = 0;
@@ -32,6 +34,7 @@ double pattern_energy( const Pattern &p )
     auto bounds = p.bounds();
     Cell size = get<1>(bounds) - get<0>(bounds);
     return e / ((size[0] + 1) * (size[1] + 1));
+  */
 }
 
 void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule, 
@@ -210,9 +213,10 @@ AnalysysResult CachingAnalyzer::process( const Pattern &pattern)
 
 struct TreePatternEnergy{
   double operator()( const TreePattern &p ){
+    return 1.1;/*
     Pattern temp;
     p.to_list(temp);
-    return pattern_energy(temp);
+    return pattern_energy(temp); */
   };
 };
 
@@ -256,6 +260,7 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
       Pattern as_list;
       bestPatternSearch.getBestValue().to_list(as_list);
       as_list.transform( t, result.bestPattern );
+      result.bestPattern.normalize();
       result.offset = t(result.offset);
       return result;
     }
@@ -275,6 +280,14 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
   }
   //search for cycle finished
   bestPatternSearch.getBestValue().to_list(result.bestPattern);
+  result.bestPattern.normalize();
   result.offset = Cell(0,0);
   return result;
+}
+
+AnalysysResult TreeAnalyzer::process( const Pattern &pattern)
+{
+  TreePattern tpattern;
+  tpattern.from_list(pattern);
+  return analyze_with_trees( tpattern, rule, max_iters, max_population );
 }
