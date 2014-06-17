@@ -43,6 +43,7 @@ class Analyzer: public AnalyzeOpts{
 public:
   Analyzer( const MargolusBinaryRule &rule_ ): rule(rule_){};
   virtual AnalysysResult process( const Pattern &pattern);
+  const MargolusBinaryRule &get_rule()const{ return rule; };
 protected:
   const MargolusBinaryRule &rule;
   virtual void on_start_processing( const Pattern &pattern ){};
@@ -101,5 +102,8 @@ const Transform & normalizing_rotation( const Cell &offset );
 
 class TreePattern;
 AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population);
+
+/**Search for the most compact form (minimizing energy) of the pattern*/
+Pattern most_compact_form( const Pattern &p, size_t period, const MargolusBinaryRule &rule );
 
 #endif

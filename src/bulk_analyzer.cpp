@@ -97,6 +97,9 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern 
   if (result.resolution == AnalysysResult::CYCLE_FOUND &&
       result.offset != Cell(0,0)){
 
+    //find the compact representation
+    //result.bestPattern = most_compact_form( result.bestPattern, result.period, analyzer.get_rule());    
+    
     library.put( result );
 
     /*
@@ -115,7 +118,7 @@ int main(int argc, char* argv[])
 {
   int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
   MargolusBinaryRule rule(r);
-  Analyzer analyzer(rule);
+  TreeAnalyzer analyzer(rule);
   
   cout << "Rule is: "<<rule << endl;
 
