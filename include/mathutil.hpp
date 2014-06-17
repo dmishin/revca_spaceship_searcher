@@ -1,5 +1,6 @@
 #ifndef __MAHTUTIL_HPP_INCL__
 #define __MAHTUTIL_HPP_INCL__
+#include <stdexcept>
 inline int div2(int x){ return x >> 1;};
 inline int mod2(int x){ return x &  1;};
 
