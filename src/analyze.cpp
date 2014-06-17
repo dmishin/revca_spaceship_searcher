@@ -220,19 +220,44 @@ struct TreePatternEnergy{
   };
 };
 
-AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population)
+/**Search for the most compact form (minimizing energy) of the pattern*/
+Pattern most_compact_form( const Pattern &p, size_t period, const MargolusBinaryRule &rule )
 {
   AnalysysResult result;
-  Maximizer<TreePattern, TreePatternEnergy, double> bestPatternSearch;
+  Maximizer<pair<Pattern, int>, EnergyFunc, double> bestPatternSearch;
 
   MargolusBinaryRule stable_rules[] = {rule};
 
   int vacuum_period = 1;//stable_rules.length;
 
   int phase = 0;
+  Pattern curPattern(p);
+  bestPatternSearch.put(make_pair(curPattern, phase) ); //initial phase is 0
+  for (size_t iter = vacuum_period; iter <= period; iter += vacuum_period) {
+    for (int irule=0;irule<vacuum_period;++irule) {
+      evaluateCellList(stable_rules[irule], curPattern, phase, curPattern);
+      phase ^= 1;
+    }
+    curPattern.sort();
+    bestPatternSearch.put(make_pair(curPattern, phase));
+  }
+  //search for cycle finished
+  int bestValuePhase = bestPatternSearch.getBestValue().second;
+  Pattern bestPattern = bestPatternSearch.getBestValue().first;
+  bestPattern.translate(bestValuePhase,bestValuePhase);
+  bestPattern.normalize();
+  return bestPattern;
+}
 
-  //on_start_processing( pattern );
-  bestPatternSearch.put(pattern ); //initial phase is 0
+AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population)
+{
+  AnalysysResult result;
+
+  MargolusBinaryRule stable_rules[] = {rule};
+
+  int vacuum_period = 1;//stable_rules.length;
+
+  int phase = 0;
 
   TreePattern cur_pattern(pattern);
 
@@ -257,14 +282,12 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
       result.period = iter;
       //normalizing rotation of the spaceship
       const Transform &t = normalizing_rotation( result.offset );
-      Pattern as_list;
-      bestPatternSearch.getBestValue().to_list(as_list);
+      Pattern as_list; pattern.to_list(as_list);
       as_list.transform( t, result.bestPattern );
       result.bestPattern.normalize();
       result.offset = t(result.offset);
       return result;
     }
-    bestPatternSearch.put( cur_pattern );
     if (cur_pattern.blocks_size() > (size_t)max_population) {
       result.resolution = AnalysysResult::PATTERN_TOO_BIG;
       break;
@@ -279,7 +302,7 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
     */
   }
   //search for cycle finished
-  bestPatternSearch.getBestValue().to_list(result.bestPattern);
+  pattern.to_list(result.bestPattern);
   result.bestPattern.normalize();
   result.offset = Cell(0,0);
   return result;
