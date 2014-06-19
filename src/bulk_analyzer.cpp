@@ -177,6 +177,11 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern,
   }
 }
 
+void performance_reporter( PatternSource &src, Library &lib )
+{
+  
+}
+
 int main(int argc, char* argv[])
 {
   Library library;
