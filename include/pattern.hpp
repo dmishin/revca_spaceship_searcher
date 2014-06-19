@@ -121,6 +121,8 @@ public:
 
   bool operator == (const Pattern &p)const;
   bool operator != (const Pattern &p)const{ return ! (*this == p); };
+  
+  void clear(){points.clear();};
 };
 
 std::ostream & operator <<(std::ostream &os, const Pattern &p);

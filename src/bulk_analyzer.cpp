@@ -16,8 +16,17 @@
 #include <ctime>
 #include <unordered_map>
 
+#include <thread>
+#include <mutex>
+//#include <condition_variable>
+#include <deque>
+#include <memory>
 
 using namespace std;
+
+class Library;
+void parse_record( picojson::value &record, int & generation, Pattern &pattern );
+void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern, Library &library );
 
 class Library{
 public:
@@ -28,6 +37,7 @@ public:
     Cell offset;
   };
   typedef std::unordered_map<Pattern, LibraryRecord> catalog_t;
+  std::mutex lock;
 private:
   catalog_t catalog;
 public:
@@ -37,8 +47,53 @@ public:
 };
 
 
+class PatternSource{
+  std::istream &stream;
+  std::mutex lock;
+  static const size_t buf_size=2048;
+  char line_buffer[buf_size];
+  size_t processed;
+  bool closed;
+public:
+  PatternSource( std::istream &s ): stream(s), processed(0), closed(false){};
+  bool get( Pattern & p, int& g );
+};
+
+bool PatternSource::get( Pattern & p, int &generation )
+{
+  picojson::value record;
+  {
+    std::unique_lock<std::mutex> _lock_stream(lock);
+    if (closed) return false;
+    stream.getline(line_buffer, buf_size);
+    if (line_buffer[0]=='\0') {
+      closed = true;
+      return false;
+    }
+    //parsing 
+    istringstream iss(line_buffer);
+    iss >> record;
+  }
+  //got record.
+  //now sync is not needed
+
+  parse_record( record, generation, p );
+  return true;
+}
+
+void analysys_worker( Analyzer &analyzer, Library & lib, PatternSource& source )
+{
+  Pattern p;
+  int generation;
+  while( source.get(p, generation) ){
+    analyze_record( analyzer, generation, p, lib);
+    p.clear();
+  }
+}
+
 void Library::put( const AnalysysResult & result, const Pattern &bestPattern )
 {
+  std::unique_lock<std::mutex> _locker(lock);
   auto iitem = catalog.find( bestPattern );
   if (iitem != catalog.end() ){
     //already have it
@@ -53,6 +108,7 @@ void Library::put( const AnalysysResult & result, const Pattern &bestPattern )
 }
 void Library::dump( std::ostream &os )
 {
+  std::unique_lock<std::mutex> _locker(lock);
   os<<"{\"version\":1,"<<endl
     <<"\"size\":"<<catalog.size()<<','
     <<"\"catalog\":["<<endl;
@@ -68,10 +124,10 @@ void Library::dump( std::ostream &os )
 }
 void Library::read( std::istream &is )
 {
+  std::unique_lock<std::mutex> _locker(lock);
   //TODO
 }
 
-Library library;
 
 void parse_record( picojson::value &record, int & generation, Pattern &pattern )
 {
@@ -90,7 +146,7 @@ void parse_record( picojson::value &record, int & generation, Pattern &pattern )
   }
 }
 
-void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern )
+void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern, Library &library )
 {
   auto result = analyzer.process(pattern);
   
@@ -123,49 +179,34 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern 
 
 int main(int argc, char* argv[])
 {
+  Library library;
   int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
   MargolusBinaryRule rule(r);
-  TreeAnalyzer analyzer(rule);
   
   cout << "Rule is: "<<rule << endl;
 
-
   istream &ifile(cin);
-  const int buf_size = 2048;
-  //const size_t min_pattern_size = 7;
-  //size_t max_cache = 10;
-  const double update_time = 15.0;
-  
-  char line_buffer[buf_size];
-  time_t timeBegin = time( nullptr );
-  int processed = 0;
-  while(true){
-    ifile.getline(line_buffer, buf_size);
-    if (line_buffer[0]=='\0') break;
-    //parsing 
-    picojson::value record;
-    istringstream iss(line_buffer);
-    iss >> record;
 
-    int generation;
-    Pattern pattern;
-    parse_record( record, generation, pattern );
-    analyze_record( analyzer, generation, pattern);
-    
-    processed ++;
-    time_t curTime = time(NULL);
-    double dt = difftime( curTime, timeBegin );
-    if (dt > update_time){
-      cerr << "Tthroughput: "<< (processed/dt) << " rows/s"
-	   << endl;
-      processed = 0;
-      timeBegin = curTime;
-      {
-	std::ofstream lib_file("library.json");
-	library.dump( lib_file );
-      }
-    }
-  };
+  size_t nthreads = 2;
+  cerr << "Running "<<nthreads<<" threads"<<endl;
+
+  PatternSource source(ifile);
+
+  vector<thread> workers;
+  vector<unique_ptr<Analyzer> >analyzers;
+  for(size_t i=0; i!=nthreads; ++i){
+    unique_ptr<Analyzer> analyzer(new TreeAnalyzer(rule));
+    //Analyzer &analyzer, Library & lib, PatternSource& source )
+    workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source) ));
+    analyzers.push_back(move(analyzer));
+  }
+  
+  cerr<<"Started threads, now waiting"<<endl;
+  for( auto &t: workers){
+    t.join();
+  }
+  cerr<<"Finished OK"<<endl;
+  
   
   return 0;
 }
