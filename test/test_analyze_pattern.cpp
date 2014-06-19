@@ -114,6 +114,7 @@ TEST( AnalyzeCellList, Spaceship ){
   AnalysysResult result;
 
   analyze( pattern, single_rot, opts, result );
-  EXPECT_EQ( result.offset, Cell(2,0) );
-  EXPECT_EQ( result.period, 12);
+  EXPECT_EQ( result.resolution, AnalysysResult::CYCLE_FOUND );
+  EXPECT_EQ( Cell(2,0), result.offset );
+  EXPECT_EQ( 12, result.period);
 }

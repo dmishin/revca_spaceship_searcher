@@ -124,6 +124,7 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
       //cycle found!
       result.resolution = AnalysysResult::CYCLE_FOUND;
       result.period = iter;
+      result.offset = offset;
       on_result_found( pattern_, result );
       return result;
     }
