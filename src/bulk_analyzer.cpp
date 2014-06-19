@@ -31,15 +31,15 @@ public:
 private:
   catalog_t catalog;
 public:
-  void put( const AnalysysResult & result );
+  void put( const AnalysysResult & result, const Pattern &bestPattern );
   void dump( std::ostream &os );
   void read( std::istream &is );
 };
 
 
-void Library::put( const AnalysysResult & result )
+void Library::put( const AnalysysResult & result, const Pattern &bestPattern )
 {
-  auto iitem = catalog.find( result.bestPattern );
+  auto iitem = catalog.find( bestPattern );
   if (iitem != catalog.end() ){
     //already have it
     iitem->second.count ++;
@@ -48,7 +48,7 @@ void Library::put( const AnalysysResult & result )
     rcd.count = 1;
     rcd.period = result.period;
     rcd.offset = result.offset;
-    catalog[result.bestPattern] = rcd;
+    catalog[bestPattern] = rcd;
   }
 }
 void Library::dump( std::ostream &os )
@@ -98,17 +98,24 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern 
       result.offset != Cell(0,0)){
 
     //find the compact representation
-    //result.bestPattern = most_compact_form( result.bestPattern, result.period, analyzer.get_rule());    
+    Pattern bestPattern = most_compact_form( pattern, result.period, analyzer.get_rule());    
+
+    //normalizing rotation of the spaceship
+    const Transform &tfm = normalizing_rotation( result.offset );
+    result.offset = tfm(result.offset);
+    bestPattern.transform(tfm);
+
+    bestPattern.normalize();
     
-    library.put( result );
+    library.put( result, bestPattern );
 
     /*
-    string rle = result.bestPattern.to_rle();
-    cout <<"{"<<"pop:"<<result.bestPattern.size()
+    string rle = bestPattern.to_rle();
+    cout <<"{"<<"pop:"<<bestPattern.size()
 	 <<","<<"g:"<<generation
 	 <<","<<"p:"<<result.period
 	 <<","<<"v:"<<result.offset
-	 <<","<<"rle:\""<< result.bestPattern.to_rle() << "\""
+	 <<","<<"rle:\""<< bestPattern.to_rle() << "\""
 	 <<"}"<<endl;
     */
   }
@@ -127,7 +134,7 @@ int main(int argc, char* argv[])
   const int buf_size = 2048;
   //const size_t min_pattern_size = 7;
   //size_t max_cache = 10;
-  const double update_time = 5.0;
+  const double update_time = 15.0;
   
   char line_buffer[buf_size];
   time_t timeBegin = time( nullptr );
@@ -144,12 +151,7 @@ int main(int argc, char* argv[])
     Pattern pattern;
     parse_record( record, generation, pattern );
     analyze_record( analyzer, generation, pattern);
-    /*
-    if ((!analyzer.is_frozen()) && analyzer.cache_size() > max_cache){
-      cerr << "### Cache grew to "<<analyzer.cache_size()<<" freezing it"<<endl;
-      analyzer.freeze();
-    }
-    */
+    
     processed ++;
     time_t curTime = time(NULL);
     double dt = difftime( curTime, timeBegin );

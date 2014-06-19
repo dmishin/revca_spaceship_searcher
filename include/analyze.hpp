@@ -24,7 +24,6 @@ struct AnalysysResult{
   Resolution resolution;
   int period;
   Cell offset;
-  Pattern bestPattern;
   AnalysysResult()
     :analyzed_generations(-1)
     ,period(-1)

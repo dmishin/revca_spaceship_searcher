@@ -18,8 +18,6 @@ using namespace std;
 
 double pattern_energy( const Pattern &p )
 {
-  return 1.1;
-  /*
     using namespace std;
     int n = (int)p.size();
     double e = 0;
@@ -34,7 +32,6 @@ double pattern_energy( const Pattern &p )
     auto bounds = p.bounds();
     Cell size = get<1>(bounds) - get<0>(bounds);
     return e / ((size[0] + 1) * (size[1] + 1));
-  */
 }
 
 void analyze(const Pattern &pattern_, const MargolusBinaryRule &rule, 
@@ -97,7 +94,6 @@ struct EnergyFunc{
 AnalysysResult Analyzer::process( const Pattern &pattern_)
 {
   AnalysysResult result;
-  Maximizer<pair<Pattern, int>, EnergyFunc, double> bestPatternSearch;
 
   MargolusBinaryRule stable_rules[] = {rule};
 
@@ -109,7 +105,6 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
   Pattern pattern(pattern_);
   
   pattern.normalize();
-  bestPatternSearch.put(make_pair(pattern, phase) ); //initial phase is 0
 
   Pattern curPattern(pattern);
 
@@ -129,17 +124,9 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
       //cycle found!
       result.resolution = AnalysysResult::CYCLE_FOUND;
       result.period = iter;
-      //normalizing rotation of the spaceship
-      const Transform &t = normalizing_rotation( offset );
-      bestPatternSearch.getBestValue().first.transform( t, result.bestPattern );
-      int bestValuePhase = bestPatternSearch.getBestValue().second;
-      result.bestPattern.translate(bestValuePhase,bestValuePhase);
-      result.bestPattern.normalize();
-      result.offset = t(offset);
       on_result_found( pattern_, result );
       return result;
     }
-    bestPatternSearch.put(make_pair(curPattern, phase));
     if (curPattern.size() > (size_t)max_population) {
       result.resolution = AnalysysResult::PATTERN_TOO_BIG;
       break;
@@ -152,11 +139,6 @@ AnalysysResult Analyzer::process( const Pattern &pattern_)
     }
   }
   //search for cycle finished
-  result.bestPattern = bestPatternSearch.getBestValue().first;
-  int bestValuePhase = bestPatternSearch.getBestValue().second;
-  result.bestPattern.translate(bestValuePhase,bestValuePhase);
-  result.bestPattern.normalize();
-
   result.offset = Cell(0,0);
   on_result_found( pattern_, result );
   return result;
@@ -213,10 +195,9 @@ AnalysysResult CachingAnalyzer::process( const Pattern &pattern)
 
 struct TreePatternEnergy{
   double operator()( const TreePattern &p ){
-    return 1.1;/*
     Pattern temp;
     p.to_list(temp);
-    return pattern_energy(temp); */
+    return pattern_energy(temp);
   };
 };
 
@@ -238,7 +219,6 @@ Pattern most_compact_form( const Pattern &p, size_t period, const MargolusBinary
       evaluateCellList(stable_rules[irule], curPattern, phase, curPattern);
       phase ^= 1;
     }
-    curPattern.sort();
     bestPatternSearch.put(make_pair(curPattern, phase));
   }
   //search for cycle finished
@@ -280,12 +260,6 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
 	result.offset += Cell(-1,-1);
       result.resolution = AnalysysResult::CYCLE_FOUND;
       result.period = iter;
-      //normalizing rotation of the spaceship
-      const Transform &t = normalizing_rotation( result.offset );
-      Pattern as_list; pattern.to_list(as_list);
-      as_list.transform( t, result.bestPattern );
-      result.bestPattern.normalize();
-      result.offset = t(result.offset);
       return result;
     }
     if (cur_pattern.blocks_size() > (size_t)max_population) {
@@ -302,8 +276,6 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
     */
   }
   //search for cycle finished
-  pattern.to_list(result.bestPattern);
-  result.bestPattern.normalize();
   result.offset = Cell(0,0);
   return result;
 }
