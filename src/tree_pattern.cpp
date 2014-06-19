@@ -108,6 +108,22 @@ void TreePattern::evaluate( const MargolusBinaryRule &rule, int phase, TreePatte
       out.append(b_x, b_y + 1);
     if (y_code & mask(1,1))
       out.append(b_x + 1, b_y + 1);
+    //faster version of the same code
+    //manually simplify out intermediate calculations
+    // blocks[Cell(div2(x), div2(y))].value |= mask(mod2(x), mod2(y));
+    /** //actually, after O3 optimization, performance is the same. it's dangerous, so lets comment it out
+    int b2x = item.first[0]-phase;
+    int b2y = item.first[1]-phase;
+    int y_code = rule(item.second.value);
+    if (y_code & mask(0,0))
+      out.blocks[Cell(b2x,b2y)].value |= mask(1,1);
+    if (y_code & mask(1,0))
+      out.blocks[Cell(b2x+1,b2y)].value |= mask(0,1);
+    if (y_code & mask(0,1))
+      out.blocks[Cell(b2x,b2y+1)].value |= mask(1,0);
+    if (y_code & mask(1,1))
+      out.blocks[Cell(b2x+1,b2y+1)].value |= mask(0,0);
+    */
   }
 }
 /*
