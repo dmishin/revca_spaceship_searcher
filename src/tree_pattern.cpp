@@ -274,3 +274,24 @@ void TreePattern::transform( const Transform &tfm, TreePattern &to)const
       });
   }
 }
+
+std::pair<Cell, Cell> TreePattern::block_bounds()const
+{
+  Cell top_left(0,0), bottom_right(0,0);
+  bool first = true;
+  for (auto &key_block : blocks){
+    const Cell &xy(key_block.first);
+    if (first){
+      first = false;
+      top_left = xy;
+      bottom_right = xy;
+    }else{
+      top_left[0] = (std::min)(top_left[0], xy[0]);
+      top_left[1] = (std::min)(top_left[1], xy[1]);
+
+      bottom_right[0] = (std::max)(bottom_right[0], xy[0]);
+      bottom_right[1] = (std::max)(bottom_right[1], xy[1]);
+    }
+  }
+  return std::make_pair(top_left, bottom_right);
+}

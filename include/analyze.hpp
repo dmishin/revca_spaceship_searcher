@@ -24,10 +24,12 @@ struct AnalysysResult{
   Resolution resolution;
   int period;
   Cell offset;
+  int max_size;
   AnalysysResult()
     :analyzed_generations(-1)
     ,period(-1)
     ,offset(0,0)
+    ,max_size(0)
   {};
 };
 
@@ -100,7 +102,7 @@ public:
 const Transform & normalizing_rotation( const Cell &offset );
 
 class TreePattern;
-AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population);
+AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population, int max_size);
 
 /**Search for the most compact form (minimizing energy) of the pattern*/
 Pattern most_compact_form( const Pattern &p, size_t period, const MargolusBinaryRule &rule );

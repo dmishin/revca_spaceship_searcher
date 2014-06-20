@@ -230,7 +230,7 @@ Pattern most_compact_form( const Pattern &p, size_t period, const MargolusBinary
   return bestPattern;
 }
 
-AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population)
+AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBinaryRule &rule, int max_iters, int max_population, int max_size)
 {
   AnalysysResult result;
 
@@ -245,6 +245,7 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
   result.analyzed_generations = max_iters;
   result.resolution = AnalysysResult::ITERATIONS_EXCEEDED;
   result.period = -1;
+  result.max_size = 0;
 
   Cell block_offset;
   for (int iter = vacuum_period; iter <= max_iters; iter += vacuum_period) {
@@ -267,14 +268,15 @@ AnalysysResult analyze_with_trees( const TreePattern &pattern, const MargolusBin
       result.resolution = AnalysysResult::PATTERN_TOO_BIG;
       break;
     }
-    /*
-    auto bounds = pattern.bounds();
-    Cell size = get<1>(bounds) - get<0>(bounds);
-    if (max(abs(size[0]), abs(size[1])) > max_size){
+    
+    pair<Cell, Cell> bounds = cur_pattern.block_bounds();
+    Cell bsize = bounds.second - bounds.first;
+    int size = max(bsize[0], bsize[1])*2+2;
+    result.max_size = (max)(result.max_size, size);
+    if (size > max_size){
       result.resolution = AnalysysResult::PATTERN_TO_WIDE;
       break;
     }
-    */
   }
   //search for cycle finished
   result.offset = Cell(0,0);
@@ -285,5 +287,5 @@ AnalysysResult TreeAnalyzer::process( const Pattern &pattern)
 {
   TreePattern tpattern;
   tpattern.from_list(pattern);
-  return analyze_with_trees( tpattern, rule, max_iters, max_population );
+  return analyze_with_trees( tpattern, rule, max_iters, max_population, max_size );
 }
