@@ -64,6 +64,7 @@ public:
 
   size_t blocks_size()const{ return blocks.size(); };
   size_t size()const;
+  std::pair<Cell, Cell> block_bounds()const;
 };
 
 std::ostream & operator << (std::ostream &os, const TreePattern &p);

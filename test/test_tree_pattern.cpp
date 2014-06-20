@@ -118,7 +118,7 @@ TEST(TreePattern, analyze)
 
   TreePattern pat{Cell(0,0)}; //it's a period-4 oscillator
 
-  AnalysysResult result = analyze_with_trees(pat, single_rot, 1000, 1000);
+  AnalysysResult result = analyze_with_trees(pat, single_rot, 1000, 1000, 100);
 
   EXPECT_EQ( AnalysysResult::CYCLE_FOUND, result.resolution );
   EXPECT_EQ( Cell(0,0), result.offset );
