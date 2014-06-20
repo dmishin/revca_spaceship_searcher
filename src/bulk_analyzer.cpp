@@ -57,8 +57,20 @@ class PatternSource{
 public:
   PatternSource( std::istream &s ): stream(s), processed(0), closed(false){};
   bool get( Pattern & p, int& g );
+  size_t get_processed();
+  bool is_closed();
 };
 
+size_t PatternSource::get_processed()
+{
+  std::unique_lock<std::mutex> _lock_stream(lock);
+  return processed;
+}
+bool PatternSource::is_closed()
+{
+  std::unique_lock<std::mutex> _lock_stream(lock);
+  return closed;
+}
 bool PatternSource::get( Pattern & p, int &generation )
 {
   picojson::value record;
@@ -73,6 +85,7 @@ bool PatternSource::get( Pattern & p, int &generation )
     //parsing 
     istringstream iss(line_buffer);
     iss >> record;
+    processed ++;
   }
   //got record.
   //now sync is not needed
@@ -179,6 +192,24 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern,
 
 void performance_reporter( PatternSource &src, Library &lib )
 {
+  time_t timeBegin = time( nullptr );
+  size_t processed = 0;
+  chrono::milliseconds dura( 15000 );
+  while( ! src.is_closed() ){
+    this_thread::sleep_for( dura );
+    size_t processedNow = src.get_processed();
+    time_t curTime = time(NULL);
+    
+    double dt = difftime( curTime, timeBegin );
+    cerr << "Tthroughput: "<< ((processedNow-processed)/dt) << " rows/s"
+	 << endl;
+    processed = processedNow;
+    timeBegin = curTime;
+    {
+      std::ofstream lib_file("library.json");
+      lib.dump( lib_file );
+    }
+  }
   
 }
 
@@ -207,9 +238,14 @@ int main(int argc, char* argv[])
   }
   
   cerr<<"Started threads, now waiting"<<endl;
+  //performance_reporter( PatternSource &src, Library &lib )
+  thread perfReporter(performance_reporter, ref(source), ref(library));
+  
   for( auto &t: workers){
     t.join();
   }
+
+  perfReporter.join();
   cerr<<"Finished OK"<<endl;
   
   
