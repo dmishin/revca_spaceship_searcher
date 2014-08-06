@@ -53,5 +53,12 @@ public:
   size_t get_size()const;
 };
 
-
+class PatternFilter{
+public:
+  virtual bool check( const Pattern &p )=0;
+};
+class NoFilter: public PatternFilter{
+public:
+  virtual bool check( const Pattern & ){return true;};
+};
 #endif

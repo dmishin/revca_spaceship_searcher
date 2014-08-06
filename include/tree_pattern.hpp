@@ -11,8 +11,9 @@ class Transform;
 
 /**Alternative implementation of the pattern*/
 class TreePattern{
-  std::map<Cell, default_int> blocks;
 public:
+  std::map<Cell, default_int> blocks;
+
   TreePattern()
   {};
   TreePattern( const TreePattern &p )
@@ -65,6 +66,7 @@ public:
   size_t blocks_size()const{ return blocks.size(); };
   size_t size()const;
   std::pair<Cell, Cell> block_bounds()const;
+  bool empty()const{ return blocks.empty(); };
 };
 
 std::ostream & operator << (std::ostream &os, const TreePattern &p);

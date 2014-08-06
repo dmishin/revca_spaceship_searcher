@@ -22,6 +22,8 @@
 
 #include "streamed_analysys.hpp"
 #include "file_pattern_source.hpp"
+#include "bruteforce_pattern_source.hpp"
+#include "tree_pattern.hpp"
 
 using namespace std;
 
@@ -29,7 +31,7 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern,
 
 std::mutex stdio_mtx;
 
-void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& source )
+void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& source, PatternFilter &filter )
 {
   Pattern p;
   int generation;
@@ -37,7 +39,18 @@ void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& 
     try{
       if (! source.get(p, generation) )
 	break;
-      analyze_record( analyzer, generation, p, lib);
+      if (filter.check(p)){
+	//Pattern p1(p);
+	//p1.normalize();
+	//cerr<<"Pattern not filtered out:"<<p1.to_rle()<<endl;
+
+	analyze_record( analyzer, generation, p, lib);
+
+      }else{
+	//Pattern p1(p);
+	//p1.normalize();
+	//cerr<<"Pattern filtered out:"<<p1.to_rle()<<endl;
+      }
     }catch(std::exception &err){
       unique_lock<mutex> _lock(stdio_mtx);
       cerr<<"#Error parsing line: ["<<err.what()<<"]"<<endl;
@@ -128,17 +141,14 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const std::
   }
 }
 
-int main(int argc, char* argv[])
+
+
+void run_analysis( AbstractPatternSource &source, 
+		   PatternFilter &filter,
+		   Library &library, 
+		   MargolusBinaryRule &rule,
+		   const string &output_file)
 {
-  Library library;
-  int r[] = {0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15};
-  MargolusBinaryRule rule(r);
-  
-  cout << "Rule is: "<<rule << endl;
-
-  istream &ifile(cin);
-
-
   //may return 0 when not able to detect
   size_t nthreads = std::thread::hardware_concurrency();
   if (nthreads == 0){
@@ -148,8 +158,6 @@ int main(int argc, char* argv[])
 
   cerr << "Running "<<nthreads<<" threads"<<endl;
 
-  PatternSource source(ifile);
-
   vector<thread> workers;
   vector<unique_ptr<Analyzer> >analyzers;
   for(size_t i=0; i!=nthreads; ++i){
@@ -157,13 +165,13 @@ int main(int argc, char* argv[])
     analyzer->max_iters = 10000;
     analyzer->max_size = 30;
     //Analyzer &analyzer, Library & lib, PatternSource& source )
-    workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source) ));
+    workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source), ref(filter) ));
     analyzers.push_back(move(analyzer));
   }
   
   cerr<<"Started threads, now waiting"<<endl;
   //performance_reporter( PatternSource &src, Library &lib )
-  thread perfReporter(performance_reporter, ref(source), ref(library), "library.json" );
+  thread perfReporter(performance_reporter, ref(source), ref(library), output_file);
   
   for( auto &t: workers){
     t.join();
@@ -171,6 +179,71 @@ int main(int argc, char* argv[])
 
   perfReporter.join();
   cerr<<"Finished processing"<<endl;
+}
+
+int main1(int argc, char* argv[])
+{
+  Library library;
+  MargolusBinaryRule rule({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});
+  
+  cout << "Rule is: "<<rule << endl;
+
+  PatternSource fsource(cin);
+
+  NoFilter pattern_filter;
+  run_analysis( fsource, 
+		pattern_filter,
+		library, 
+		rule,
+		"library.json");
+  
+  return 0;
+}
+
+bool singlerot_has_unchanged_core( const Pattern & _p )
+{
+  TreePattern pattern(_p);
+  while (! pattern.empty() ){
+    vector<Cell> keys_to_delete;
+    for( auto &key_value : pattern.blocks ){
+      int block = key_value.second.value;
+      if (block == 1 || block == 2 || block == 4 || block == 8){ //single-cellers
+	keys_to_delete.push_back( key_value.first );
+      }
+    }
+    if (keys_to_delete.empty())
+      break;
+    for( const Cell &key : keys_to_delete ){
+      pattern.blocks.erase( key );
+    }
+    pattern.translate(1,1);
+  }
+  
+  return ! pattern.empty();
+}
+
+class SinglerotCoralFilter: public PatternFilter{
+public:
+  virtual bool check( const Pattern &p){ 
+    return ! singlerot_has_unchanged_core(p);
+  };
+};
+int main(int argc, char* argv[])
+{
+  Library library;
+  MargolusBinaryRule rule({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15});
+
+  int pattern_size = 10;
+  cout << "Bruteforcing patterns of size "<<pattern_size<<endl;
+  cout << "Rule is: "<<rule << endl;
+
+  BruteforceSource source(pattern_size);
+  SinglerotCoralFilter pattern_filter;
+  run_analysis( source,
+		pattern_filter,
+		library, 
+		rule,
+		"bruteforce-library.json");
   
   return 0;
 }
