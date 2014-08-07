@@ -162,8 +162,8 @@ void run_analysis( AbstractPatternSource &source,
   vector<unique_ptr<Analyzer> >analyzers;
   for(size_t i=0; i!=nthreads; ++i){
     unique_ptr<Analyzer> analyzer(new TreeAnalyzer(rule));
-    analyzer->max_iters = 10000;
-    analyzer->max_size = 30;
+    analyzer->max_iters = 20000;
+    analyzer->max_size = 40;
     //Analyzer &analyzer, Library & lib, PatternSource& source )
     workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source), ref(filter) ));
     analyzers.push_back(move(analyzer));
