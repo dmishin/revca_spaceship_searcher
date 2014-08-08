@@ -27,12 +27,14 @@ void Library::put( const AnalysysResult & result, const Pattern &bestPattern )
   auto iitem = catalog.find( bestPattern );
   if (iitem != catalog.end() ){
     //already have it
-    iitem->second.count ++;
+    if (store_hit_count)
+      iitem->second.count ++;
   }else{
     LibraryRecord rcd;
-    rcd.count = 1;
+    rcd.count = (store_hit_count)?1:0;
     rcd.period = result.period;
     rcd.offset = result.offset;
+    rcd.max_generations = result.analyzed_generations;
     catalog[bestPattern] = rcd;
   }
 }
@@ -66,7 +68,7 @@ void Library::dump( std::ostream &os )
 
     os <<'{'
        << "\"result\":{"
-       << "\"analysed_generations\":"<<10000<<','
+       << "\"analysed_generations\":"<<rec.max_generations<<','
        << "\"dx\":" << rec.offset[0]<<','
        << "\"dy\":" << rec.offset[1]<<','
        << "\"period\":" << rec.period<<','
@@ -86,3 +88,34 @@ void Library::read( std::istream &is )
   //TODO
 }
 
+
+bool AbstractPatternSource::check_pattern( const Pattern &p)const
+{
+  for( auto &pfilter: filters){
+    if (! pfilter->check(p))
+      return false;
+  }
+  return true;
+}
+
+void AbstractPatternSource::add_filter( unique_ptr<PatternFilter> f)
+{
+  filters.push_back(move(f));
+}
+
+bool AbstractPatternSource::get( Pattern & p, int& g )
+{
+  while(true){
+    if (!get_nofilter(p,g))
+      return false;
+    if (check_pattern(p))
+      return true;
+    else
+      p.clear();
+  }
+}
+
+std::string AbstractPatternSource::get_position_text()const
+{
+  return "unknown";
+}

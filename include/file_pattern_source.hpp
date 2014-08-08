@@ -8,12 +8,15 @@
 class PatternSource: public AbstractPatternSource{
   std::istream &stream;
   static const size_t buf_size=2048;
+  size_t lineno;
   char line_buffer[buf_size];
   bool closed;
+protected:
+  virtual bool get_nofilter( Pattern & p, int& g );
 public:
-  PatternSource( std::istream &s ): stream(s), closed(false){};
-  virtual bool get( Pattern & p, int& g );
+  PatternSource( std::istream &s ): stream(s), lineno(0), closed(false){};
   virtual bool is_closed();
+  virtual std::string get_position_text()const;
 };
 
 

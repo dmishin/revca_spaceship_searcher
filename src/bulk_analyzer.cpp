@@ -22,17 +22,41 @@
 #include "file_pattern_source.hpp"
 #include "bruteforce_pattern_source.hpp"
 #include "tree_pattern.hpp"
+#include "singlerot.hpp"
 
 #include "optionparser.h"
 
+#include <csignal>
+#include <cstdlib>
+#include <unistd.h>
 
 using namespace std;
+
+struct Options{
+  string source_file;
+  int bruteforce_size;
+  bool use_bruteforce;
+  vector<int> bruteforce_start;
+  MargolusBinaryRule rule;
+  int max_iterations;
+  int max_size;
+  string output_file;
+
+  Options()
+    :bruteforce_size(-1)
+    ,use_bruteforce(false)
+    ,rule({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15})
+    ,max_iterations(10000)
+    ,max_size(50)
+  {}
+  bool parse(int argc, char* argv[]);
+};
 
 void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern, Library &library );
 
 std::mutex stdio_mtx;
 
-void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& source, PatternFilter &filter )
+void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& source)
 {
   Pattern p;
   int generation;
@@ -40,21 +64,12 @@ void analysys_worker( Analyzer &analyzer, Library & lib, AbstractPatternSource& 
     try{
       if (! source.get(p, generation) )
 	break;
-      if (filter.check(p)){
-	//Pattern p1(p);
-	//p1.normalize();
-	//cerr<<"Pattern not filtered out:"<<p1.to_rle()<<endl;
+      analyze_record( analyzer, generation, p, lib);
 
-	analyze_record( analyzer, generation, p, lib);
-
-      }else{
-	//Pattern p1(p);
-	//p1.normalize();
-	//cerr<<"Pattern filtered out:"<<p1.to_rle()<<endl;
-      }
     }catch(std::exception &err){
       unique_lock<mutex> _lock(stdio_mtx);
-      cerr<<"#Error parsing line: ["<<err.what()<<"]"<<endl;
+      cerr<<"  error processing pattern: "<<err.what()<<endl
+	  <<"  pattern is:"<<p<<endl;
     }
     p.clear();
   }
@@ -91,7 +106,7 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern,
     unique_lock<mutex> _lock(stdio_mtx);
     Pattern p(pattern);
     p.normalize();
-    cerr<<"### iters exceeded for: "<<p.to_rle()<<endl;
+    cerr<<"  iterations exceeded: "<<p.to_rle()<<endl;
   }else if (result.resolution == AnalysysResult::PATTERN_TO_WIDE){
     /*
     unique_lock<mutex> _lock(stdio_mtx);
@@ -107,7 +122,7 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const std::
   time_t timeBegin = time( nullptr );
   size_t processed = 0;
   chrono::milliseconds dura( 100 );
-  size_t dump_every = 150;//every 15 sec
+  size_t dump_every = 10;//every 15 sec
   size_t counter=0;
 
   auto do_report = [&] () -> void {
@@ -117,9 +132,9 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const std::
     double dt = difftime( curTime, timeBegin );
     if (dt>0){
       unique_lock<mutex> _lock(stdio_mtx);
-      cerr << "Throughput: "<< ((processedNow-processed)/dt) << " rows/s"
-	   << "Library size:"<< lib.get_size()
-	   << endl;
+      cerr << "Throughput: "<< ((processedNow-processed)/dt) << " patterns/s" << endl
+	   << "Library size:"<< lib.get_size() << endl
+	   << "Current position:"<< src.get_position_text() <<endl<<endl;
     }
     processed = processedNow;
     timeBegin = curTime;
@@ -145,12 +160,8 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const std::
 
 
 void run_analysis( AbstractPatternSource &source, 
-		   PatternFilter &filter,
 		   Library &library, 
-		   MargolusBinaryRule &rule,
-		   const string &output_file,
-		   int max_iters,
-		   int max_size)
+		   const Options &options)
 {
   //may return 0 when not able to detect
   size_t nthreads = std::thread::hardware_concurrency();
@@ -159,22 +170,22 @@ void run_analysis( AbstractPatternSource &source,
     nthreads = 1;
   }
 
-  cerr << "Running "<<nthreads<<" threads"<<endl;
+  cerr << "Running "<<nthreads<<" analysys threads"<<endl;
 
   vector<thread> workers;
   vector<unique_ptr<Analyzer> >analyzers;
   for(size_t i=0; i!=nthreads; ++i){
-    unique_ptr<Analyzer> analyzer(new TreeAnalyzer(rule));
-    analyzer->max_iters = max_iters;
-    analyzer->max_size = max_size;
+    unique_ptr<Analyzer> analyzer(new TreeAnalyzer(options.rule));
+    analyzer->max_iters = options.max_iterations;
+    analyzer->max_size = options.max_size;
     //Analyzer &analyzer, Library & lib, PatternSource& source )
-    workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source), ref(filter) ));
+    workers.push_back( thread( analysys_worker, ref( *analyzer), ref(library), ref(source) ));
     analyzers.push_back(move(analyzer));
   }
   
-  cerr<<"Started threads, now waiting"<<endl;
-  //performance_reporter( PatternSource &src, Library &lib )
-  thread perfReporter(performance_reporter, ref(source), ref(library), output_file);
+  cerr<<"Started threads, now waiting for termination"<<endl;
+
+  thread perfReporter(performance_reporter, ref(source), ref(library), options.output_file);
   
   for( auto &t: workers){
     t.join();
@@ -183,35 +194,6 @@ void run_analysis( AbstractPatternSource &source,
   perfReporter.join();
   cerr<<"Finished processing"<<endl;
 }
-
-bool singlerot_has_unchanged_core( const Pattern & _p )
-{
-  TreePattern pattern(_p);
-  while (! pattern.empty() ){
-    vector<Cell> keys_to_delete;
-    for( auto &key_value : pattern.blocks ){
-      int block = key_value.second.value;
-      if (block == 1 || block == 2 || block == 4 || block == 8){ //single-cellers
-	keys_to_delete.push_back( key_value.first );
-      }
-    }
-    if (keys_to_delete.empty())
-      break;
-    for( const Cell &key : keys_to_delete ){
-      pattern.blocks.erase( key );
-    }
-    pattern.translate(1,1);
-  }
-  
-  return ! pattern.empty();
-}
-
-class SinglerotCoralFilter: public PatternFilter{
-public:
-  virtual bool check( const Pattern &p){ 
-    return ! singlerot_has_unchanged_core(p);
-  };
-};
 
 enum  optionIndex { UNKNOWN, HELP, SOURCE, BRUTEFORCE, BRUTEFORCE_START, RULE, MAX_ITERATIONS, MAX_SIZE };
 
@@ -222,41 +204,20 @@ const option::Descriptor usage[] =
  {HELP, 0,"h", "help",option::Arg::None, 
   "  --help  \tPrint usage and exit." },
  {SOURCE, 0,"s","source",option::Arg::Optional, 
-  "  -s, --source FILE.jsons\tSource file, containing patterns. Format is JSON stream, one pattern per line. Pattern is list of [x,y] pairs." },
+  "  -s, --source FILE.jsons Source file, containing patterns. Format is JSON stream, one pattern per line. Pattern is list of [x,y] pairs." },
  {BRUTEFORCE, 0, "b", "bruteforce", option::Arg::Optional,
   "  -b, --bruteforce=N Brute-force search for patterns of size N. Incompatible with --source. Search is infinite."},
  {BRUTEFORCE_START, 0, "B", "bruteforce-start", option::Arg::Optional,
   "  -B, --bruteforce-start=N1,N2,N3,... Start index of the bruteforce search. Usable for continuing searches."},
  {RULE, 0, "r", "rule", option::Arg::Optional,
-  "  -r, --rule=R1,R2,...,R15 Rule, comma-separated list of integers. Default is single rotation"},
+  "  -r, --rule=R1,R2,...,R16 Rule, comma-separated list of integers. Default is single rotation"},
  {MAX_ITERATIONS, 0, "I", "max-iter", option::Arg::Optional,
   "  -I, --max-iter Maximal numer of iterations or analysys. Default is 10000"},
  {MAX_SIZE, 0, "S", "max-size", option::Arg::Optional,
   "  -S, --max-size Maximum size of the bounding box of the pattern. Default is 30"},
-
+ 
 
  {0,0,0,0,0,0}
-};
-
-
-struct Options{
-  string source_file;
-  int bruteforce_size;
-  bool use_bruteforce;
-  vector<int> bruteforce_start;
-  MargolusBinaryRule rule;
-  int max_iterations;
-  int max_size;
-  string output_file;
-
-  Options()
-    :bruteforce_size(-1)
-    ,use_bruteforce(false)
-    ,rule({{0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15}})
-    ,max_iterations(10000)
-    ,max_size(50)
-  {}
-  bool parse(int argc, char* argv[]);
 };
 
 const char * null_to_empty( const char * s )
@@ -299,7 +260,7 @@ bool Options::parse(int argc, char* argv[])
     use_bruteforce = false;
   }
   if (options[BRUTEFORCE]){
-    if (!use_bruteforce) throw logic_error("--briteforce and --source are incompatile. Decide what do you need.");
+    if (!use_bruteforce) throw logic_error("--bruteforce and --source are incompatile. Decide what do you need.");
     use_bruteforce=true;
     stringstream ss(null_to_empty(options[BRUTEFORCE].last()->arg));
     if (!(ss >> bruteforce_size)) throw logic_error("Faield to parse bruteforce size");
@@ -343,9 +304,21 @@ bool Options::parse(int argc, char* argv[])
     if (max_iterations<=0)
       throw logic_error("max_iters must be positive");
   }
+  //parse output file
+  if (parse.nonOptionsCount() < 1)
+    throw logic_error("library name not specified");
+  if (parse.nonOptionsCount() > 1)
+    throw logic_error("redundant arguments after library name");
+  output_file = parse.nonOption(0);
   return true;
 }
 
+void my_handler(int s){
+  unique_lock<mutex> _lock(stdio_mtx);
+  cerr<<"Caught signal: "<< s <<endl
+      <<"Stopping forcefully" << endl;
+  exit(1); 
+}
 
 int main(int argc, char* argv[])
 {
@@ -362,33 +335,44 @@ int main(int argc, char* argv[])
 
   Library library;
 
-  cout << "Rule is: "<<options.rule << endl;
+  cout << "Rule is: "<<options.rule << endl
+       << "Writing library to "<<options.output_file<<endl;
+
+  //enable signal handling
+  /*
+  sigaction sigIntHandler;
+  
+  sigIntHandler.sa_handler = my_handler;
+  sigemptyset(&sigIntHandler.sa_mask);
+  sigIntHandler.sa_flags = 0;
+  
+  sigaction(SIGINT, &sigIntHandler, NULL);
+
+  */
+
   if (options.use_bruteforce){
+    library.store_hit_count = false; //statistics not useless when bruteforcing.
     cout << "Bruteforcing patterns of size "<<options.bruteforce_size<<endl;
 
     BruteforceSource source(options.bruteforce_size);
-    
-    SinglerotCoralFilter pattern_filter;
+
+    if (options.rule == singlerot){
+      cout<<" SingleRotation rule used, enabling filter for indestructible patterns"<<endl;
+
+      unique_ptr<SinglerotCoralFilter> pattern_filter(new SinglerotCoralFilter);
+      source.add_filter(move(pattern_filter));
+    }
     run_analysis( source,
-		  pattern_filter,
 		  library, 
-		  options.rule,
-		  options.output_file,
-		  options.max_iterations,
-		  options.max_size);
+		  options);
   }else{
     //processing file
     ifstream file_data(options.source_file);
     PatternSource fsource(file_data);
 
-    NoFilter pattern_filter;
     run_analysis( fsource, 
-		  pattern_filter,
 		  library, 
-		  options.rule,
-		  options.output_file,
-		  options.max_iterations,
-		  options.max_size);
+		  options);
     
   }
   return 0;

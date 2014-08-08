@@ -18,20 +18,28 @@
 #include <thread>
 //#include <condition_variable>
 #include <deque>
-#include <memory>
 */
+#include <memory>
 #include <mutex>
 class Library;
 
+class PatternFilter;
+
 class AbstractPatternSource{
+private:
+  std::vector< std::unique_ptr< PatternFilter > > filters;
+  bool check_pattern( const Pattern &p)const;
 protected:
-  std::mutex lock;
+  mutable std::mutex lock;
   size_t processed;
+  virtual bool get_nofilter( Pattern & p, int& g )=0;
 public:
   AbstractPatternSource();
+  bool get( Pattern & p, int& g );
   size_t get_processed();
   virtual bool is_closed()=0;
-  virtual bool get( Pattern & p, int& g )=0;
+  void add_filter( std::unique_ptr<PatternFilter> filter );
+  virtual std::string get_position_text()const;
 };
 
 class Library{
@@ -41,12 +49,15 @@ public:
     int count;
     int period;
     Cell offset;
+    int max_generations;
   };
   typedef std::unordered_map<Pattern, LibraryRecord> catalog_t;
   mutable std::mutex lock;
 private:
   catalog_t catalog;
 public:
+  bool store_hit_count;
+  Library():store_hit_count(true){};
   void put( const AnalysysResult & result, const Pattern &bestPattern );
   void dump( std::ostream &os );
   void read( std::istream &is );

@@ -12,7 +12,7 @@ bool PatternSource::is_closed()
   return closed;
 }
 
-bool PatternSource::get( Pattern & p, int &generation )
+bool PatternSource::get_nofilter( Pattern & p, int &generation )
 {
   picojson::value record;
   {
@@ -23,6 +23,7 @@ bool PatternSource::get( Pattern & p, int &generation )
       closed = true;
       return false;
     }
+    lineno ++;
     //parsing 
     istringstream iss(line_buffer);
     iss >> record;
@@ -64,3 +65,11 @@ void parse_record( picojson::value &record, int & generation, Pattern &pattern )
   }
 }
 
+
+std::string PatternSource::get_position_text()const
+{
+  std::unique_lock<std::mutex> _lock_stream(lock);
+  stringstream ss;
+  ss<<"line #"<<lineno;
+  return ss.str();
+}

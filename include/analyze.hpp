@@ -6,9 +6,9 @@
 
 struct AnalyzeOpts
 {
-  int max_iters; //=2048
-  int max_population;//=100;
-  int max_size;//1000;
+  int max_iters;
+  int max_population;
+  int max_size;
   AnalyzeOpts()
     :max_iters(4000)
     ,max_population(1024)
