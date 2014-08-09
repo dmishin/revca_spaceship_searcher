@@ -219,6 +219,7 @@ const option::Descriptor usage[] =
   "  -I, --max-iter Maximal numer of iterations or analysys. Default is 10000"},
  {MAX_SIZE, 0, "S", "max-size", option::Arg::Optional,
   "  -S, --max-size Maximum size of the bounding box of the pattern. Default is 30"},
+
  {THREADS, 0, "T", "threads", option::Arg::Optional,
   "  -T, --threads Number of analysys threads. Default is number of processors"},
 

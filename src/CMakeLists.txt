@@ -10,10 +10,10 @@ add_library( bruteforcing
 
 #add_executable( cpp-revca cpp-revca.cpp )
 
-add_executable( bulk_analyzer1 
+add_executable( bulk_analyzer 
 		bulk_analyzer.cpp streamed_analysys.cpp file_pattern_source.cpp
 		singlerot.cpp)
-target_link_libraries( bulk_analyzer1
+target_link_libraries( bulk_analyzer
 		       bruteforcing revca )
 
 #add_executable( bruteforce bruteforce.cpp) 
