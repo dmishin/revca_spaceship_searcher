@@ -16,7 +16,6 @@ bool PatternSource::get_nofilter( Pattern & p, int &generation )
 {
   picojson::value record;
   {
-    std::unique_lock<std::mutex> _lock_stream(lock);
     if (closed) return false;
     stream.getline(line_buffer, buf_size);
     if (line_buffer[0]=='\0') {

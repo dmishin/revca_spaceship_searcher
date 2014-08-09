@@ -105,6 +105,9 @@ void AbstractPatternSource::add_filter( unique_ptr<PatternFilter> f)
 
 bool AbstractPatternSource::get( Pattern & p, int& g )
 {
+  //assuming that getting single pattern from the source is fast, 
+  //and don't release lock until something was obtained.
+  std::unique_lock<std::mutex> _lock_stream(lock);
   while(true){
     if (!get_nofilter(p,g))
       return false;

@@ -41,6 +41,7 @@ struct Options{
   int max_iterations;
   int max_size;
   string output_file;
+  size_t threads;
 
   Options()
     :bruteforce_size(-1)
@@ -48,6 +49,7 @@ struct Options{
     ,rule({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15})
     ,max_iterations(10000)
     ,max_size(50)
+    ,threads(0)
   {}
   bool parse(int argc, char* argv[]);
 };
@@ -117,7 +119,7 @@ void analyze_record( Analyzer &analyzer, int generation, const Pattern &pattern,
   }
 }
 
-void performance_reporter( AbstractPatternSource &src, Library &lib, const std::string &dump_path  )
+void performance_reporter( AbstractPatternSource &src, Library &lib, const Options &opt  )
 {
   time_t timeBegin = time( nullptr );
   size_t processed = 0;
@@ -138,17 +140,16 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const std::
     }
     processed = processedNow;
     timeBegin = curTime;
-    std::ofstream lib_file(dump_path);
+    ofstream lib_file(opt.output_file);
     lib.dump( lib_file );
   };
   
   while( ! src.is_closed() ){
     this_thread::sleep_for( dura );
-    if (++ counter  != dump_every )
-      continue;
-    else
+    if (++ counter  == dump_every ){
       counter = 0;
-    do_report();
+      do_report();
+    }
   }
   do_report();
   {
@@ -164,9 +165,12 @@ void run_analysis( AbstractPatternSource &source,
 		   const Options &options)
 {
   //may return 0 when not able to detect
-  size_t nthreads = std::thread::hardware_concurrency();
+
+  size_t nthreads = options.threads;
+  if (nthreads == 0){ //not specified.
+    nthreads = thread::hardware_concurrency();
+  }
   if (nthreads == 0){
-    cerr<<"Failed to determine number of cores, using 1"<<endl;
     nthreads = 1;
   }
 
@@ -185,7 +189,7 @@ void run_analysis( AbstractPatternSource &source,
   
   cerr<<"Started threads, now waiting for termination"<<endl;
 
-  thread perfReporter(performance_reporter, ref(source), ref(library), options.output_file);
+  thread perfReporter(performance_reporter, ref(source), ref(library), ref(options));
   
   for( auto &t: workers){
     t.join();
@@ -195,7 +199,7 @@ void run_analysis( AbstractPatternSource &source,
   cerr<<"Finished processing"<<endl;
 }
 
-enum  optionIndex { UNKNOWN, HELP, SOURCE, BRUTEFORCE, BRUTEFORCE_START, RULE, MAX_ITERATIONS, MAX_SIZE };
+enum  optionIndex { UNKNOWN, HELP, SOURCE, BRUTEFORCE, BRUTEFORCE_START, RULE, MAX_ITERATIONS, MAX_SIZE, THREADS };
 
 const option::Descriptor usage[] =
 {
@@ -215,7 +219,8 @@ const option::Descriptor usage[] =
   "  -I, --max-iter Maximal numer of iterations or analysys. Default is 10000"},
  {MAX_SIZE, 0, "S", "max-size", option::Arg::Optional,
   "  -S, --max-size Maximum size of the bounding box of the pattern. Default is 30"},
- 
+ {THREADS, 0, "T", "threads", option::Arg::Optional,
+  "  -T, --threads Number of analysys threads. Default is number of processors"},
 
  {0,0,0,0,0,0}
 };
@@ -304,6 +309,15 @@ bool Options::parse(int argc, char* argv[])
     if (max_iterations<=0)
       throw logic_error("max_iters must be positive");
   }
+  if (options[THREADS]){
+    stringstream ss( null_to_empty(options[THREADS].last()->arg));
+    if (!(ss>>threads))
+      throw logic_error("Failed to parse number of threads");
+    if (threads <0 || threads>1000){
+      stringstream msg("Wrong number of threads:"); msg<<threads;
+      throw logic_error(msg.str());
+    }
+  }
   //parse output file
   if (parse.nonOptionsCount() < 1)
     throw logic_error("library name not specified");
@@ -354,7 +368,7 @@ int main(int argc, char* argv[])
     library.store_hit_count = false; //statistics not useless when bruteforcing.
     cout << "Bruteforcing patterns of size "<<options.bruteforce_size<<endl;
 
-    BruteforceSource source(options.bruteforce_size);
+    BruteforceSource source(options.bruteforce_start);
 
     if (options.rule == singlerot){
       cout<<" SingleRotation rule used, enabling filter for indestructible patterns"<<endl;
@@ -369,7 +383,7 @@ int main(int argc, char* argv[])
     //processing file
     ifstream file_data(options.source_file);
     PatternSource fsource(file_data);
-
+    
     run_analysis( fsource, 
 		  library, 
 		  options);

@@ -65,3 +65,8 @@ void pattern_enumerator::next()
   cone_next(&(state[0]), state.size());
 }
  
+
+pattern_enumerator::pattern_enumerator(const std::vector<int> &index)
+  :state(index)
+{
+}
