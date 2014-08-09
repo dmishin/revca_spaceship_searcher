@@ -1,16 +1,13 @@
 //#include "gason.hpp"
 #include "rule.hpp"
 #include "pattern.hpp"
-#include "field.hpp"
 #include "analyze.hpp"
 
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
 #include <sstream>
-#include <set>
 #include <fstream>
-#include <cstring>
 #include <ctime>
 #include <unordered_map>
 
@@ -25,10 +22,6 @@
 #include "singlerot.hpp"
 
 #include "optionparser.h"
-
-#include <csignal>
-#include <cstdlib>
-#include <unistd.h>
 
 using namespace std;
 
@@ -303,6 +296,9 @@ bool Options::parse(int argc, char* argv[])
 		      irule,
 		      16 );
     rule = MargolusBinaryRule( irule );
+    if (rule(0) != 0)
+      throw logic_error("Rule changes empty field, analysy not supported");
+      
   }
   if (options[MAX_SIZE]){
     stringstream ss( null_to_empty(options[MAX_SIZE].last()->arg));
@@ -347,13 +343,6 @@ bool Options::parse(int argc, char* argv[])
   return true;
 }
 
-void my_handler(int s){
-  unique_lock<mutex> _lock(stdio_mtx);
-  cerr<<"Caught signal: "<< s <<endl
-      <<"Stopping forcefully" << endl;
-  exit(1); 
-}
-
 int main(int argc, char* argv[])
 {
 
@@ -371,18 +360,6 @@ int main(int argc, char* argv[])
 
   cout << "Rule is: "<<options.rule << endl
        << "Writing library to "<<options.output_file<<endl;
-
-  //enable signal handling
-  /*
-  sigaction sigIntHandler;
-  
-  sigIntHandler.sa_handler = my_handler;
-  sigemptyset(&sigIntHandler.sa_mask);
-  sigIntHandler.sa_flags = 0;
-  
-  sigaction(SIGINT, &sigIntHandler, NULL);
-
-  */
 
   if (options.use_bruteforce){
     library.store_hit_count = false; //statistics useless when bruteforcing.
