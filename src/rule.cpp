@@ -28,12 +28,10 @@ ostream & operator << (ostream & os, const MargolusBinaryRule &rule)
   ios::fmtflags f( os.flags() );
   os<<"[";
   for(int x=0; x<16; ++x){
-    if (x != 0) os << " ";
-    os << hex << x ;
-    os << "->";
-    os << hex << rule(x) ;
-
+    if (x != 0) os << ',';
+    os << rule(x);
   }
+  os<<"]";
   os.flags( f );
   return os;
 }
