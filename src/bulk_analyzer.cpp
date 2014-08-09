@@ -42,14 +42,16 @@ struct Options{
   int max_size;
   string output_file;
   size_t threads;
+  int dump_interval_ms;
 
   Options()
     :bruteforce_size(-1)
     ,use_bruteforce(false)
-    ,rule({0,2,8,3,1,5,6,7,4,9,10,11,12,13,14,15})
+    ,rule(singlerot)
     ,max_iterations(10000)
     ,max_size(50)
     ,threads(0)
+    ,dump_interval_ms(1000)
   {}
   bool parse(int argc, char* argv[]);
 };
@@ -123,23 +125,24 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const Optio
 {
   time_t timeBegin = time( nullptr );
   size_t processed = 0;
-  chrono::milliseconds dura( 100 );
-  size_t dump_every = 10;//every 15 sec
+  const int wake_every = 100;
+  chrono::milliseconds dura( wake_every );
+  size_t dump_every = (max)(1, opt.dump_interval_ms / wake_every);
   size_t counter=0;
 
   auto do_report = [&] () -> void {
     size_t processedNow = src.get_processed();
-    time_t curTime = time(NULL);
+    time_t curTime = time(nullptr);
     
     double dt = difftime( curTime, timeBegin );
     if (dt>0){
       unique_lock<mutex> _lock(stdio_mtx);
-      cerr << "Throughput: "<< ((processedNow-processed)/dt) << " patterns/s" << endl
+      cout << "Throughput: "<< ((processedNow-processed)/dt) << " patterns/s" << endl
 	   << "Library size:"<< lib.get_size() << endl
 	   << "Current position:"<< src.get_position_text() <<endl<<endl;
+      processed = processedNow;
+      timeBegin = curTime;
     }
-    processed = processedNow;
-    timeBegin = curTime;
     ofstream lib_file(opt.output_file);
     lib.dump( lib_file );
   };
@@ -154,7 +157,7 @@ void performance_reporter( AbstractPatternSource &src, Library &lib, const Optio
   do_report();
   {
     unique_lock<mutex> _lock(stdio_mtx);
-    cerr<<"finished"<<endl;
+    cout<<"Reporter thread finished"<<endl;
   }
 }
 
@@ -199,7 +202,7 @@ void run_analysis( AbstractPatternSource &source,
   cerr<<"Finished processing"<<endl;
 }
 
-enum  optionIndex { UNKNOWN, HELP, SOURCE, BRUTEFORCE, BRUTEFORCE_START, RULE, MAX_ITERATIONS, MAX_SIZE, THREADS };
+enum  optionIndex { UNKNOWN, HELP, SOURCE, BRUTEFORCE, BRUTEFORCE_START, RULE, MAX_ITERATIONS, MAX_SIZE, THREADS, DUMP_INTERVAL_MS };
 
 const option::Descriptor usage[] =
 {
@@ -222,7 +225,8 @@ const option::Descriptor usage[] =
 
  {THREADS, 0, "T", "threads", option::Arg::Optional,
   "  -T, --threads Number of analysys threads. Default is number of processors"},
-
+ {DUMP_INTERVAL_MS, 0, "", "dump-interval", option::Arg::Optional,
+  " --dump-interval=N Update library every N milliseconds. Default is 1000 (1s)"},
  {0,0,0,0,0,0}
 };
 
@@ -235,10 +239,14 @@ void parse_comma_list( const char *slist, int *data, size_t size)
 {
   stringstream ss(slist);
   for( size_t i=0; i<size; ++i){
-    if (! (ss>>data[i]) )
-      throw logic_error("Failed to parse comma-delimited list of integers");
+    if (! (ss>>data[i]) ){
+      stringstream msg;
+      msg <<"Expected comma-delimited list of "
+	  << size << " integers, but got:"<<slist;
+      throw logic_error(msg.str());
+    }
     if (ss.peek() == ',')
-        ss.ignore();
+	ss.ignore();
   }
 }
 
@@ -278,8 +286,8 @@ bool Options::parse(int argc, char* argv[])
   }
   
   if (options[BRUTEFORCE_START]){
-    cout<<"bfs"<<endl;
-    if (!use_bruteforce) throw logic_error("Not using bruteforce, bruteforce-start meaningless");
+    if (!use_bruteforce) 
+      throw logic_error("Not using bruteforce, --bruteforce-start meaningless");
     parse_comma_list( null_to_empty( options[BRUTEFORCE_START].last()->arg),
 		      &(bruteforce_start[0]),
 		      bruteforce_start.size());
@@ -315,7 +323,18 @@ bool Options::parse(int argc, char* argv[])
     if (!(ss>>threads))
       throw logic_error("Failed to parse number of threads");
     if (threads <0 || threads>1000){
-      stringstream msg("Wrong number of threads:"); msg<<threads;
+      stringstream msg;
+      msg << "Wrong number of threads:"<<threads;
+      throw logic_error(msg.str());
+    }
+  }
+  if (options[DUMP_INTERVAL_MS]){
+    stringstream ss( null_to_empty(options[DUMP_INTERVAL_MS].last()->arg));
+    if (!(ss>>dump_interval_ms))
+      throw logic_error("Failed to parse dump interval value");
+    if (dump_interval_ms <= 0){
+      stringstream msg;
+      msg << "Wrong dump interval:"<<dump_interval_ms<<"ms";
       throw logic_error(msg.str());
     }
   }
@@ -366,7 +385,7 @@ int main(int argc, char* argv[])
   */
 
   if (options.use_bruteforce){
-    library.store_hit_count = false; //statistics not useless when bruteforcing.
+    library.store_hit_count = false; //statistics useless when bruteforcing.
     cout << "Bruteforcing patterns of size "<<options.bruteforce_size<<endl;
 
     BruteforceSource source(options.bruteforce_start);

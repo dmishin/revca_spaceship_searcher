@@ -6,12 +6,6 @@ using namespace std;
 
 void parse_record( picojson::value &record, int & generation, Pattern &pattern );
 
-bool PatternSource::is_closed()
-{
-  std::unique_lock<std::mutex> _lock_stream(lock);
-  return closed;
-}
-
 bool PatternSource::get_nofilter( Pattern & p, int &generation )
 {
   picojson::value record;

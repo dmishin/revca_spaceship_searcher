@@ -33,11 +33,12 @@ protected:
   mutable std::mutex lock;
   size_t processed;
   virtual bool get_nofilter( Pattern & p, int& g )=0;
+  bool closed;
 public:
   AbstractPatternSource();
   bool get( Pattern & p, int& g );
   size_t get_processed();
-  virtual bool is_closed()=0;
+  bool is_closed();
   void add_filter( std::unique_ptr<PatternFilter> filter );
   virtual std::string get_position_text()const;
 };

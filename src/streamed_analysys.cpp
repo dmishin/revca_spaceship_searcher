@@ -4,6 +4,7 @@ using namespace std;
 
 AbstractPatternSource::AbstractPatternSource()
   :processed(0)
+  ,closed(false)
 {
 }
 
@@ -122,3 +123,10 @@ std::string AbstractPatternSource::get_position_text()const
 {
   return "unknown";
 }
+
+bool AbstractPatternSource::is_closed()
+{
+  std::unique_lock<std::mutex> _lock_stream(lock);
+  return closed;
+}
+

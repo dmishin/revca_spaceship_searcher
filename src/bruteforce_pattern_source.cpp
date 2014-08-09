@@ -10,11 +10,6 @@ bool BruteforceSource::get_nofilter( Pattern & p, int& g )
   processed ++;
   return true;
 }
-bool BruteforceSource::is_closed()
-{
-  return false;
-}
-
 
 std::string BruteforceSource::get_position_text()const
 {
